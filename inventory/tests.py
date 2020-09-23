@@ -1,21 +1,10 @@
-from django.test import TestCase, Client
-from . import models
-from json import dumps, loads
 import random
 import string
+from json import dumps, loads
 
-class ModelTest(TestCase):
-    def setUp(self):
-        models.Supplier.objects.create(name='Supplier Test')
+from django.test import Client, TestCase
 
-    def testCreate(self):
-        product = models.Product.objects.create(name='Product', stock=100)
-        
-        add_stock = 100
-        initial_stock = product.stock
-        transaction = models.Transaction(product=product, stock=add_stock).save()
-
-        self.assertEqual(product.stock, (add_stock+initial_stock))
+from inventory import forms, models
 
 class ViewTest(TestCase):
     def setUp(self):
@@ -96,21 +85,35 @@ class ViewTest(TestCase):
 
     def testReadProduct(self):
         client = Client()
-        
-        filters = {
-            'q': '',
-            'limit': None,
-            'ordering': {
-                'order_by': 'id',
-            },
-        }
 
         # creates product ids to get
         productIds = [i for i in range(1, 101)]
 
+        # read info of a product
         get_data = {
-            # 'productId': random.choice(productIds),
-            'filters': filters
+            'productId': random.choice(productIds)
+        }
+
+        # send request
+        response = client.get('/product/read/', {
+                'json_data': dumps(get_data),
+        })
+
+        self.assertEqual(response.status_code, 200)
+        
+        query = ''
+        limit = None
+        
+        # products info filter data
+        get_data = {
+            'filters': {
+                'q': query,
+                'limit': limit,
+                'ordering': {
+                    'order_by': 'name',
+                    'order_type': 'descending'
+                }
+            }
         }
 
         # send get request
@@ -120,32 +123,50 @@ class ViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+        # check if products count matches limit
+        if limit:
+            self.assertEqual(len(loads(response.content)), limit)
+        
+        # check if product models length is same with response data
+        if not query:
+            self.assertEqual(len(loads(response.content)), len(models.Product.objects.all()))
+
         print(response.content)
     
     def testUpdateProduct(self):
-        prev_product = models.Product.objects.create(
-            pk=1,
-            name='Product1',
-            stock=23,
-            description='description1',
-        )
-
-        prev_name = prev_product.name
+        random_pk = random.randint(0, 100)
+        prev_product = models.Product.objects.get(pk=random_pk)
 
         client = Client()
+        # data to send
         data = {
-            'productId': 1,
-            'name': 'Product2',
-            'stock': 20,
-            'supplier_id': 2,
-            'description': 'description' 
+            'productId': random_pk,                     # product id to update
+            'productInfo': {                            # product information
+                'name': 'updated name',                 # "name" required
+                'stock': 100,                           # "stock" required
+                'description': 'updated description',   # "description" optional
+                'barcode': 20395343,                    # "barcode" optional
+                'supplier': 1,                          # "supplier" optional
+            }
         }
 
-        res = client.post('/product/update/', {'json_data': dumps(data)})
+        response = client.post('/product/update/', {'json_data': dumps(data)})
+        
+        self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(res.status_code, 200)
-        # self.assertEqual(prev_name, )
-        print((str(res.content)))
+        # check if product is updated
+        self.assertEqual(models.Product.objects.filter(**data['productInfo']).exists(), True)
+
+        # print(response.content)
+
+    def testDeleteProduct(self):
+        client = Client()
+
+        response = client.post('/product/delete/', {'json_data': dumps({'productId': 2 })})
+
+        self.assertEqual(response.status_code, 200)
+
+        print(response.content)
 
     def testCreateSupplier(self):
         client = Client()
