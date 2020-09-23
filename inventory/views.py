@@ -1,11 +1,15 @@
 import json
-from django.shortcuts import render, HttpResponse
-from django.db.models.functions import Coalesce
-from . models import *
-from .forms import *
 
-def create_product(loaded_data):
-    form = ProductForm(loaded_data)
+from django.db.models.functions import Coalesce
+from django.shortcuts import HttpResponse, get_object_or_404, render
+
+from .forms import *
+from .models import *
+
+
+def create_product(product_info):
+    ''' This creates a product '''
+    form = ProductForm(product_info)
     if form.is_valid():
         form.save()
         return form.data
@@ -13,9 +17,11 @@ def create_product(loaded_data):
         return form.errors
 
 def mass_create_product(loaded_data):
+    ''' This creates multiple product '''
     return [ create_product(data) for data in loaded_data ]
 
 def read_product(pk):
+    ''' This give the information of a product '''
     product = Product.objects.get(pk=pk)
 
     # get field names of product
@@ -36,27 +42,33 @@ def read_product(pk):
 def filter_products(q='all', limit=None, ordering={'order_by': 'name', 'order_type': None}):
     ''' Filter products query '''
 
+    # if query value is None and all with no limit returns all product 
     if q == 'all' and not limit:
         products = Product.objects.all()
+    
     else:
+        # if ordering and limit filter filter product with it's values
         if ordering and limit:
             if ordering.get('order_type') == 'descending':
                     products = Product.objects.filter(name__icontains=q).order_by(
-                        Coalesce(ordering.get('order_by')
+                        Coalesce(ordering.get('order_by'), ordering.get('order_by')
                     ).desc())[0:limit]
             else:
                 products = Product.objects.filter(name__icontains=q).order_by(
                         ordering['order_by']
-                    )
+                    )[0:limit]
+
+        # if limit is not supplied but ordering is
         elif ordering and not limit:
             if ordering.get('order_type') == 'descending':
                     products = Product.objects.filter(name__icontains=q).order_by(
-                        Coalesce(ordering['order_by']
+                        Coalesce(ordering['order_by'], ordering['order_by']
                     ).desc())
             else:
                 products = Product.objects.filter(name__icontains=q).order_by(
                         ordering['order_by']
                     )
+        # if ordering is None
         else:
             products = Product.objects.filter(name__icontains=q)[0:limit]
 
@@ -67,12 +79,21 @@ def filter_products(q='all', limit=None, ordering={'order_by': 'name', 'order_ty
         'description': product.description
     } for product in products ]
 
-def update_product(**kwargs):
-    product = Product.objects.get(pk=kwargs['productId'])
-    del(kwargs['productId'])
-    return product
+def update_product(product_data):
+    product_id = product_data['productId']
+    product_info = product_data['productInfo']
+
+    product = Product.objects.get(pk=product_id)
+    form = ProductForm(product_info, instance=product)
+    if form.is_valid():
+        form.save()
+        return form.data
+    else:
+        return form.errors
 
 def product_action(request, action):
+    '''This function handles all the create, read, update, and delete on a product'''
+
     if request.method == 'GET':        
         if action == 'read':
             loaded_data = json.loads(request.GET.get('json_data'))
@@ -94,33 +115,49 @@ def product_action(request, action):
                 response_data = read_product(loaded_data['productId'])
             
             return HttpResponse(json.dumps(response_data))
+        else:
+            return HttpResponse('can\'t do that')
     else:
         loaded_data = json.loads(request.POST.get('json_data'))
 
         if action == 'create':
             # fields "name" required, "stock" required
-            # "description", "barcode", "supplier" instance of Supplier
-             
-            if request.POST.get('isMass'):
-                response_data = mass_create_product(loaded_data)
+            # "description", "barcode", "supplier" instance of Supplier model
+            product_info_lenght = len(loaded_data)
+            if  product_info_lenght > 1:
+                # creates multiple product
+                product_infos = loaded_data
+                response_data = mass_create_product(product_infos)
             else:
-                response_data = create_product(loaded_data)
+                # create a single product
+                product_info = loaded_data
+                response_data = create_product(product_info)
                 
             return HttpResponse(json.dumps(response_data))        
 
         elif action == 'update':
-            product = update_product(**loaded_data)
+            # fields "productId" required, "productInfo" required a dict object
+            # ex. { "productInfo": {
+            #       "name": "exName",           # required
+            #       "stock": 100,               # required
+            #       "barcode": 0291323,         # optional
+            #       "supplier": 2,              # optional must be a supplier primary key
+            #       "description": "exDesc"     # optional
+            # }}
+            response = update_product(loaded_data)
 
-            return HttpResponse(json.dumps({
-                'name': product.name,
-                'stock': product.stock,
-                'description': product.description,
-                'supplier': product.supplier.serializable_value('name'),
-            }))
+            return HttpResponse(json.dumps(response))
 
         elif action == 'delete':
-            pass
-   
+            # fields required productId
+            product_id = loaded_data['productId']
+            print(product_id)
+            product = get_object_or_404(Product.objects.all(), pk=product_id)
+            product.delete()
+
+            return HttpResponse(f'product with id {product_id} has been deleted')
+        else:
+            return HttpResponse('what are your doing bruh?')
 
 def create_supplier(supplier_info):
     # creates a new supplier
@@ -161,6 +198,3 @@ def supplier_action(request, action):
                 message = f'supplier with id {supplier_id} does not exists.'
 
             return HttpResponse(json.dumps({'message': message}))
-
-
-
