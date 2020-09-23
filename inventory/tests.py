@@ -1,8 +1,8 @@
 from django.test import TestCase, Client
 from . import models
-from json import dumps
+from json import dumps, loads
 import random
-
+import string
 
 class ModelTest(TestCase):
     def setUp(self):
@@ -19,91 +19,152 @@ class ModelTest(TestCase):
 
 class ViewTest(TestCase):
     def setUp(self):
-        models.Supplier.objects.create(name='supplier1', pk=1)
-        models.Supplier.objects.create(name='supplier2', pk=2)
+        # create 10 supplier
+        for i in range(0, 10):
+            name_generator = ''.join([
+                random.choices(string.ascii_letters)[0] for i in range(0, 10)
+            ])
+            models.Supplier.objects.create(name=name_generator)
 
+        # create 100 product
+        for i in range(0, 100):
+            name_generator = ''.join([
+                random.choices(string.ascii_letters)[0] for i in range(0, 10)
+            ])
 
+            models.Product.objects.create(
+                name=name_generator,
+                stock=random.randint(1, 100),
+                supplier_id=random.randint(1, 10)
+            )
 
     def testCreateProduct(self):
         client = Client()
-        product_names = ['test1', 'test2', 'test3', 'test4', 'test5']
-        stocks = [100, 20, 30, 10, 20]
-        suppliers = [1, 2, 1, 2, 1]
-        descriptions = ['description', 'test', '', '', 'test2']
-        data = []
-        [
-            data.append({
-                'name': prod_name,
-                'stock': stock,
-                'supplier': supplier,
-                'description': description,
-            }) for prod_name, stock, supplier, description in zip(product_names, stocks, suppliers, descriptions)
+        # create 10 product names
+        product_names = [
+                ''.join([
+                    random.choices(string.ascii_letters)[0] for i in range(0, 10)
+                ]) for i in range(0, 10)
+            ]
+
+        # creates the data to send as post request
+        post_datas = [{
+                'name': product_name,
+                'stock': random.randint(1, 100),
+                'supplier': random.randint(1, 10),
+                'description': f'{product_name} description',
+            } for product_name in product_names
         ]
 
-        for i, j in zip(data, product_names):
-            response = client.post('/product/create/', {'json_data': dumps(i)})
+        # sending the post data
+        for post_data, product_name in zip(post_datas, product_names):
+            response = client.post('/product/create/', {'json_data': dumps(post_data)})
             
             self.assertEqual(response.status_code, 200)
-           
-            product = models.Product.objects.get(name=j)
- 
-            # prints response
-            print(response.content)
-            # check if product is same as given product_name
-            self.assertEqual(product.name, j)
+
+            # check if saved to database
+            product_check = models.Product.objects.filter(**post_data).exists()
+            self.assertEqual(product_check, True)
+
+            # print(response.content)
 
     def testMassCreateProduct(self):
         client = Client()
-        product_names = ['test1', 'test2', 'test3', 'test4', 'test5']
-        stocks = [100, 20, 30, 10, 20]
-        suppliers = [1, 2, 1, 2, 1]
-        descriptions = ['description', 'test', '', '', 'test2']
-        data = []
-        # 
-        [
-            data.append({
-                'name': prod_name,
-                'stock': stock,
-                'supplier': supplier,
-                'description': description,
-            }) for prod_name, stock, supplier, description in zip(product_names, stocks, suppliers, descriptions)
+
+        # create 10 product name
+        product_names = [
+                ''.join([
+                    random.choices(string.ascii_letters)[0] for i in range(0, 10)
+                ]) for i in range(0, 100)
+            ]
+
+        # create the post data
+        post_data = [{
+                'name': product_name,
+                'stock': random.randint(1, 100),
+                'supplier': random.randint(1, 10),
+                'description': f'{product_name} description',
+            } for product_name in product_names
         ]
 
-        response = client.post('/product/create/', {'json_data': dumps(data), 'isMass': True})
-        self.assertEqual(len(models.Product.objects.all()), 5)
+        # send post request and save the response to response variable
+        response = client.post('/product/create/', {'json_data': dumps(post_data), 'isMass': True})
 
-        print(response.content)
+        self.assertEqual(response.status_code, 200)
+
+        # print(response.content)
 
     def testReadProduct(self):
-        pks = [x for x in range(1, 10)]
-        for i in pks:
-            models.Product.objects.create(
-                pk=i,
-                name=f'Product {i}', 
-                stock=random.randint(1, 100),
-                description=f'description {i}',
-                supplier=models.Supplier.objects.get(pk=random.choice([1,2]))
-            )
+        client = Client()
+        
+        filters = {
+            'q': '',
+            'limit': None,
+            'ordering': {
+                'order_by': 'id',
+            },
+        }
+
+        # creates product ids to get
+        productIds = [i for i in range(1, 101)]
+
+        get_data = {
+            # 'productId': random.choice(productIds),
+            'filters': filters
+        }
+
+        # send get request
+        response = client.get('/product/read/', {
+                'json_data': dumps(get_data),
+        })
+
+        self.assertEqual(response.status_code, 200)
+
+        print(response.content)
+    
+    def testUpdateProduct(self):
+        prev_product = models.Product.objects.create(
+            pk=1,
+            name='Product1',
+            stock=23,
+            description='description1',
+        )
+
+        prev_name = prev_product.name
 
         client = Client()
-
         data = {
-            'productId': random.choice(pks)
+            'productId': 1,
+            'name': 'Product2',
+            'stock': 20,
+            'supplier_id': 2,
+            'description': 'description' 
         }
-        res = client.get('/product/read/', {
-                'json_data': dumps(data)
-            })
 
-        # for mass read
-        data = {
-            'productIds': pks
-        }
-        res = client.get('/product/read/', {
-                'json_data': dumps(data), 'isMass': True
-            })
-        
-        print(res.content)
+        res = client.post('/product/update/', {'json_data': dumps(data)})
 
         self.assertEqual(res.status_code, 200)
+        # self.assertEqual(prev_name, )
+        print((str(res.content)))
 
-        print(res.content)
+    def testCreateSupplier(self):
+        client = Client()
+
+        response = client.post('/supplier/create/', {
+            'json_data': dumps({
+                'name': 'Supplier Test1',
+                'email': 'jhpetalbo@gmail.com'
+            })
+        })
+
+        self.assertEqual(response.status_code, 200)
+        print(response.content)
+
+    def testDeleteSupplier(self):
+        client = Client()
+
+        response = client.post('/supplier/delete/', dumps({
+            'supplierId': 2
+        }))
+        self.assertEqual(response.status_code, 200)
+        print(response.context)
