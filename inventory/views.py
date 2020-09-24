@@ -14,7 +14,10 @@ def create_product(product_info):
         form.save()
         return form.data
     else:
-        return form.errors
+        return {
+            'isError': True,
+            'message': form.errors
+        }
 
 
 def mass_create_product(loaded_data):
@@ -37,7 +40,8 @@ def read_product(pk):
     # convert supplier object to json can read
     try:
         product_info['supplier'] = product_info['supplier'].serializable_value(
-            'id')
+            'id'
+        )
     except:
         pass
 
@@ -121,9 +125,11 @@ def product_action(request, action):
                 # fields "productId" required
                 response_data = read_product(loaded_data['productId'])
 
-            return HttpResponse(json.dumps(response_data))
         else:
-            return HttpResponse('can\'t do that')
+            response_data = {
+                'isError': True,
+                'message': 'what are your doing bruh?'
+            }
     else:
         loaded_data = json.loads(request.POST.get('json_data'))
 
@@ -140,8 +146,6 @@ def product_action(request, action):
                 product_info = loaded_data
                 response_data = create_product(product_info)
 
-            return HttpResponse(json.dumps(response_data))
-
         elif action == 'update':
             # fields "productId" required, "productInfo" required a dict object
             # ex. { "productInfo": {
@@ -151,19 +155,21 @@ def product_action(request, action):
             #       "supplier": 2,              # optional must be a supplier primary key
             #       "description": "exDesc"     # optional
             # }}
-            response = update_product(loaded_data)
-
-            return HttpResponse(json.dumps(response))
+            response_data = update_product(loaded_data)
 
         elif action == 'delete':
             # fields required productId
             product_id = loaded_data['productId']
             product = get_object_or_404(Product.objects.all(), pk=product_id)
             product.delete()
-
-            return HttpResponse(f'product with id {product_id} has been deleted')
+            response_data = f'product with id {product_id} has been deleted'
         else:
-            return HttpResponse('what are your doing bruh?')
+            response_data = {
+                'isError': True,
+                'message': 'what are your doing bruh?'
+            }
+
+    return HttpResponse(json.dumps({'responseData': response_data}))
 
 
 def create_supplier(supplier_info):
@@ -189,8 +195,8 @@ def supplier_action(request, action):
             # For creating a new supplier
             # fields "name" required, "mobile_number", "email", "address"
 
-            response = create_supplier(loaded_data)
-            return HttpResponse(json.dumps(response))
+            response_data = create_supplier(loaded_data)
+            # return HttpResponse(json.dumps(response))
 
         elif action == 'update':
             pass

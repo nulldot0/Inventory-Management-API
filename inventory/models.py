@@ -7,15 +7,12 @@ class Supplier(models.Model):
     email = models.EmailField(blank=True)
     address = models.CharField(blank=True, max_length=100)
 
-
 class Product(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     barcode = models.IntegerField(blank=True, null=True)
     stock = models.IntegerField(default=0)
-    supplier = models.ForeignKey(
-        Supplier, on_delete=models.CASCADE, null=True, blank=True)
-
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, null=True, blank=True)
 
 class Transaction(models.Model):
     product = models.ForeignKey(Product, on_delete=models.DO_NOTHING)
@@ -26,3 +23,6 @@ class Transaction(models.Model):
     def save(self, *args, **kwargs):
         self.product.stock = self.product.stock + self.stock
         super(Transaction, self).save(self, *args, **kwargs)
+
+
+
