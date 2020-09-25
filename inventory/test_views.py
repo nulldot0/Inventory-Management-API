@@ -19,14 +19,22 @@ class ViewProduct(TestCase):
 
         # create 100 product
         for i in range(0, 50):
+
             name_generator = ''.join([
-                random.choices(string.ascii_letters)[0] for i in range(0, 10)
+                random.choice(string.ascii_letters) for i in range(0, 10)
             ])
-            # create product with supplier
+
+            barcode_generator = ''.join([
+                random.choice(string.digits) for i in range(0, 12)
+            ])
+
+            # create product with supplier and description
             models.Product.objects.create(
                 name=name_generator,
                 stock=random.randint(1, 100),
-                supplier_id=random.randint(1, 10)
+                barcode=barcode_generator,
+                supplier_id=random.randint(1, 10),
+                description=f'{name_generator} description'
             )
 
             # create product without supplier
@@ -35,41 +43,100 @@ class ViewProduct(TestCase):
                 stock=random.randint(1, 100),
             )
 
+    def queryProduct(self):
+        ''' Testing for querying a product '''
+        client = Client()
+
+        response = client.get('/query/product/', {
+            'json_data': dumps(
+                {
+                    'filters': {                                # creating the query data
+                        'query': '100',
+                        'query_by': 'barcode',
+                        'query_limit': 100,
+                        'order_by': 'id',
+                        'order_type': 'ascn'
+                    }
+                }
+            )
+        })
+
+        response_data = loads(response.content)
+        [print(i) for i in response_data['responseData']]
+
     def testCreateProduct(self):
+        client = Client()
 
-        required_fields = ['name', 'stock']
-        optional_fields = ['barcode', 'description', 'supplier']
-
-        post_data = {}
-
-        valid_product_name = 'Product Valid'
         invalid_product_name = random.choice([None, '', 1])
-
-        valid_stock = 100,
         invalid_stock = random.choice([random.choice(range(-100, 0)), None])
-        
-        # creates the data to send as post request with complete requirements
+        invalid_barcode = ''.join(
+            [random.choice(string.ascii_letters) for i in range(0, 101)])
+        invalid_supplier = ''
 
-        product_name = 'Product Test'
-        post_data_complete = {
-            'name': product_name,
-            'stock': random.randint(1, 100),
-            'supplier': 1,
-            'description': f'{product_name} description',
+        post_data_required_field_not_supplied = {
+            'barcode': 'test'
         }
 
-        # sending the post data
-        client = Client()
         response = client.post(
-            '/product/create/', {'json_data': dumps(post_data_complete)})
+            '/product/create/', {
+                'json_data': dumps(post_data_required_field_not_supplied)
+            })
 
         self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content)['responseData']
+        # check if response has errors
+        self.assertEqual(response_data.get('isError'), True)
 
-        # check if saved to database
-        # product_check = models.Product.objects.filter(**post_data_complete).exists()
-        # self.assertEqual(product_check, True)
+        # creates the data to send as post request with invalid values in fields
+        post_data_invalid = {
+            'name': invalid_product_name,
+            'stock': invalid_stock,
+            'supplier': invalid_supplier,
+            'barcode': invalid_barcode,
+            'description': f'{invalid_product_name} description',
+        }
 
-        print(response.content)
+        # sending the post data with invalid values
+        response = client.post(
+            '/product/create/', {
+                'json_data': dumps(post_data_invalid)
+            })
+
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content)['responseData']
+        # check if response has errors
+        self.assertEqual(response_data.get('isError'), True)
+
+        # # print(response_data)
+
+        # creates the data to send as post request with valid values in fields
+        valid_product_name = 'Product Valid'
+        valid_barcode = '239123'
+        valid_supplier = 10
+        valid_stock = 100,
+
+        post_data_valid = {
+            'name': valid_product_name,
+            'stock': valid_barcode,
+            'barcode': valid_barcode,
+            'description': f'{valid_product_name} description',
+            'supplier': valid_supplier
+        }
+
+        supplier = (models.Supplier.objects.get(pk=valid_supplier))
+        # sending the post data with valid values
+        response = client.post(
+            '/product/create/', {
+                'json_data': dumps(post_data_valid)
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content)['responseData']
+        # check if response has no errors
+        self.assertEqual(response_data.get('isError'), None)
+
+        # print(response_data)
 
     def testMassCreateProduct(self):
 
@@ -81,22 +148,28 @@ class ViewProduct(TestCase):
         ]
 
         # create the post data
-        post_data = [{
-            'name': product_name,
-            'stock': random.randint(1, 100),
-            'supplier': random.randint(1, 10),
-            'description': f'{product_name} description',
-        } for product_name in product_names
+        post_data = [
+            {
+                'name': product_name,
+                'stock': random.randint(1, 100),
+                'supplier': random.randint(1, 10),
+                'description': f'{product_name} description',
+            } for product_name in product_names
         ]
 
         # send post request and save the response to response variable
         client = Client()
         response = client.post(
-            '/product/create/', {'json_data': dumps(post_data), 'isMass': True})
+            '/product/create/', {
+                'json_data': dumps(post_data),
+                'isMass': True
+            }
+        )
 
         self.assertEqual(response.status_code, 200)
 
-        print(response.content)
+        response_data = loads(response.content)['responseData']
+        # print(response_data)
 
     def testReadAProduct(self):
         # creates product ids to get
@@ -104,8 +177,15 @@ class ViewProduct(TestCase):
 
         # read info of a product
         get_data = {
-            'productId': random.choice(productIds)
+            'productId': 101
         }
+
+        # create a product with no supplier
+        models.Product(**{
+            'pk': 101,
+            'name': 'test read product',
+            'description': 'description',
+        }).save()
 
         # send request
         client = Client()
@@ -115,42 +195,7 @@ class ViewProduct(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        print(response.content)
-
-    def testQueryProduct(self):
-        query = ''
-        limit = None
-
-        # products info filter data
-        get_data = {
-            'filters': {
-                'q': query,
-                'limit': limit,
-                'ordering': {
-                    'order_by': 'name',
-                    'order_type': 'descending'
-                }
-            }
-        }
-
-        # send get request
-        client = Client()
-        response = client.get('/product/read/', {
-            'json_data': dumps(get_data),
-        })
-
-        self.assertEqual(response.status_code, 200)
-
-        # check if products count matches limit
-        if limit:
-            self.assertEqual(len(loads(response.content)), limit)
-
-        # check if product models length is same with response data
-        if not query:
-            self.assertEqual(len(loads(response.content)['responseData']),
-                             len(models.Product.objects.all()))
-
-        print(response.content)
+        # print(response.content)
 
     def testUpdateProduct(self):
         random_pk = random.randint(0, 100)
@@ -178,7 +223,7 @@ class ViewProduct(TestCase):
         self.assertEqual(models.Product.objects.filter(
             **data['productInfo']).exists(), True)
 
-        print(response.content)
+        # print(response.content)
 
     def testDeleteProduct(self):
 
@@ -189,7 +234,7 @@ class ViewProduct(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        print(response.content)
+        # print(response.content)
 
     def testActionUnidentified(self):
         # sending the request
@@ -199,4 +244,4 @@ class ViewProduct(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        print(response.content)
+        # print(response.content)
