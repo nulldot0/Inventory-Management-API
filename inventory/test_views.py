@@ -8,6 +8,22 @@ from django.test import Client, TestCase
 from . import forms, models
 
 
+def send_request(data, url, method='POST'):
+    ''' sending data to servier'''
+    client = Client()
+
+    if method == 'POST':
+        response = client.post(url, {
+            'jsonData': dumps(data)
+        })
+    else:
+        response = client.get(url, {
+            'jsonData': dumps(data)
+        })
+
+    return response
+
+
 class ProductView(TestCase):
     def setUp(self):
         # create 10 supplier
@@ -43,7 +59,7 @@ class ProductView(TestCase):
                 stock=random.randint(1, 100),
             )
 
-    def testQueryProduct(self):
+    def testQuery(self):
         ''' Testing for querying a product '''
         client = Client()
 
@@ -64,8 +80,8 @@ class ProductView(TestCase):
         response_data = loads(response.content)
         # [print(i) for i in response_data['responseData']]
 
-
-    def testCreateProduct(self):
+    def testCreate(self):
+        ''' testing product create'''
         client = Client()
 
         invalid_product_name = random.choice([None, '', 1])
@@ -140,7 +156,7 @@ class ProductView(TestCase):
 
         # print(response_data)
 
-    def testMassCreateProduct(self):
+    def testMassCreate(self):
 
         # create 10 product name
         product_names = [
@@ -173,7 +189,7 @@ class ProductView(TestCase):
         response_data = loads(response.content)['responseData']
         # print(response_data)
 
-    def testReadAProduct(self):
+    def testRead(self):
         # creates product ids to get
         productIds = [i for i in range(1, 101)]
 
@@ -199,7 +215,7 @@ class ProductView(TestCase):
 
         # print(response.content)
 
-    def testUpdateProduct(self):
+    def testUpdate(self):
         random_pk = random.randint(0, 100)
         prev_product = models.Product.objects.get(pk=random_pk)
 
@@ -227,7 +243,7 @@ class ProductView(TestCase):
 
         # print(response.content)
 
-    def testDeleteProduct(self):
+    def testDelete(self):
 
         # sending the request
         client = Client()
@@ -260,9 +276,8 @@ class SupplierView(TestCase):
 
         [models.Supplier.objects.create(name=i) for i in supplier_names]
 
-    def testCreateSupplier(self):
-        client = Client()
-
+    def testCreate(self):
+        ''' testing supplier create'''
         # suppplier valid info to send
         supplier_valid_info = {
             'name': 'Supplier Valid Name',
@@ -270,16 +285,14 @@ class SupplierView(TestCase):
             'email': 'jhpetalbo@gmail.com',
             'address': 'brgy. string, python'
         }
-        
-        response = client.post('/supplier/create/', {
-            'jsonData': dumps(supplier_valid_info)
-        })
+
+        response = send_request(supplier_valid_info, '/supplier/create/')
 
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content).get('responseData')
+        # self.assertEqual(
+        # len(models.Supplier.objects.filter(**supplier_valid_info)), 1)
 
-        self.assertEqual(len(models.Supplier.objects.filter(**supplier_valid_info)), 1)
-        
         # print(response_data)
 
         # supplier invalid info to send
@@ -289,64 +302,49 @@ class SupplierView(TestCase):
             'address': 123,
         }
 
-        response = client.post('/supplier/create/', {
-            'jsonData': dumps(supplier_invalid_info)
-        })
+        response = send_request(supplier_invalid_info, '/supplier/create/')
 
         self.assertEqual(response.status_code, 200)
 
         response_data = loads(response.content).get('responseData')
-        
         # check if response has errors
         self.assertTrue(response_data.get('isError'))
 
         # print(response_data)
 
-    def testReadASupplier(self):
-        def send_request(data):
-            client = Client()
-            response = client.get('/supplier/read/', {
-                'jsonData': dumps(data)
-            })
-
-            return response
+    def testRead(self):
+        ''' testing supplier read '''
 
         valid_supplier_id = {
             'supplierId': 10
         }
-        
 
-        response = send_request(valid_supplier_id)
-        
+        response = send_request(valid_supplier_id, '/supplier/read/', 'GET')
+
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content).get('responseData')
-        
+
         # print(response_data)
-        
+
         # supplier id that doesn't exist
         does_not_exist_supplier_id = {
             'supplierId': 101
         }
 
-        response = send_request(does_not_exist_supplier_id)
+        response = send_request(
+            does_not_exist_supplier_id, '/supplier/read/', 'GET')
 
         # checks response error
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = loads(response.content).get('responseData')
+        # check if error
+        self.assertTrue(response_data['isError'])
 
         # print(response.content)
 
-    def testQuerySupplier(self):
-        def send_request(data):
-            client = Client()
-
-            response = client.get('/query/supplier/', {
-                'jsonData': dumps({
-                    'filters': data
-                })
-            })
-    
-            return response
-
+    def testQuery(self):
+        ''' testing supplier query '''
         filters = {
             'query': 't',
             'query_by': 'name',
@@ -355,8 +353,88 @@ class SupplierView(TestCase):
             'order_type': 'desc'
         }
 
-        response = send_request(filters)
+        response = send_request(filters, '/query/supplier/', 'GET')
         self.assertEqual(response.status_code, 200)
-        print(response.content)
+
+        # print(response.content)
+
+    def testDelete(self):
+        ''' testing supplier delete '''
+        url = '/supplier/delete/'
+
+        # sending valid data
+        valid_data = {
+            'supplierId': 1
+        }
+
+        response = send_request(valid_data, url)
+
+        self.assertEqual(response.status_code, 200)
+
+        response_data = loads(response.content).get('responseData')
+
+        # print(response_data)
+
+        # sending invalid data
+        invalid_data = {
+            'supplierId': 100
+        }
+        
+        response = send_request(invalid_data, url)
+        response_data = loads(response.content).get('responseData')
+        
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
+
+        # sending invalid data
+        invalid_data = {
+            'id': 100
+        }
+        
+        response = send_request(invalid_data, url)
+        response_data = loads(response.content).get('responseData')
+        
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
+
+
+    def testUpdate(self):
+        url = '/supplier/update/'
+
+        previous_supplier = models.Supplier.objects.get(pk=1)
+        
+        # sending valid supplier info
+        valid_supplier_info = {
+            'supplierId': 1,
+            'name': 'Supplier Name updated',
+            'email': 'supplieremail@updated.com',
+            'address': 'supplier updated address'
+        }
+
+        response = send_request(valid_supplier_info, url)
+        
+        # checking error
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertNotEqual(previous_supplier.name, valid_supplier_info['name'])
+        print(response_data)
+
+        # sending invalid supplier info
+        invalid_supplier_info = {
+            'n': 'test',
+            'test', 123,
+            'tes2', None
+        }
+        
+        # checking error
+        response = send_request(invalid_supplier_info, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError')) 
+        print(response_data)           
+
+
 
 

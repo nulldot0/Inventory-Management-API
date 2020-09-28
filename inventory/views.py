@@ -69,53 +69,71 @@ def product_action(request, action):
 
 
 def supplier_action(request, action):
-    # CREATE, READ, UPDATE, and DELETE supplier
+    ''' CREATE, READ, UPDATE, and DELETE supplier '''
     if request.method == 'GET':
+        # this action read information of a supplier
         if action == 'read':
             loaded_data = json.loads(request.GET.get('jsonData'))
 
             supplier_id = loaded_data.get('supplierId')
 
             if supplier_id:
-                return HttpResponse(json.dumps(
-                    {
-                        'responseData': read_model(supplier_id, Supplier)
-                    }
-                ))
+                response_data = read_model(supplier_id, Supplier)
             else:
-                return HttpResponse(json.dumps(
-                    {
+                response_data = {
                         'isError': True,
                         'errorInfo': 'Please provide a supplier id'
                     }
-                ))
+        else:
+            response_data = {
+                'isError': True,
+                'errorInfo': f'action {action} possible'
+            }
 
     else:
         loaded_data = json.loads(request.POST.get('jsonData'))
 
         if action == 'create':
             # For creating a new supplier
-            # fields "name" required, "mobile_number", "email", "address"
+            # fields 
+            # "name" required 
+            # "mobile_number" optional
+            # "email" optional
+            # "address" optional
 
             response_data = create_supplier(loaded_data)
 
-            return HttpResponse(json.dumps({
-                'responseData': response_data
-            }))
-
         elif action == 'update':
             pass
-        else:
+        elif action == 'delete':
             # for deleting supplier
             # fields "supplierId"
-            supplier_id = loaded_data['supplierId']
+            supplier_id = loaded_data.get('supplierId')
             if Supplier.objects.filter(pk=supplier_id).exists():
                 Supplier.objects.get(pk=supplier_id).delete()
-                message = f'supplier with id {supplier_id} deleted'
+                response_data = f'supplier with id {supplier_id} deleted'
             else:
-                message = f'supplier with id {supplier_id} does not exists.'
+                if supplier_id == None:
+                    errorInfo = 'please provide an "supplierId" to delete'
+                else:
+                    errorInfo = f'supplier with id {supplier_id} does not exists.'
 
-            return HttpResponse(json.dumps({'message': message}))
+                response_data = {
+                    'isError': True,
+                    'errorInfo': errorInfo
+                }
+        else:
+            # return this message if action is invalid
+            response_data = 'choose a valid action. (create, delete, read, and update)'
+
+    return HttpResponse(
+        json.dumps(
+            {
+                'responseData': response_data
+            }
+        )
+
+    )
 
 
 def query(request, q_model):
@@ -158,10 +176,10 @@ def query(request, q_model):
         if filter_form.is_valid():
             # queries the supplier objects
             q = Supplier.objects.search(**filter_form.cleaned_data)
-            
+
             # gets the supplier info
             supplier_infos = [read_model(i.pk, Supplier) for i in q]
-            
+
             return HttpResponse(
                 json.dumps(
                     {
@@ -228,28 +246,35 @@ def mass_create_product(loaded_data):
 def read_model(pk, obj):
     ''' This gives the information of a Model from Obj '''
 
-    model_obj = get_object_or_404(obj, pk=pk)
-    from inventory import models
-    # get the models fields
-    fields = [
-        i.name for i in model_obj._meta.get_fields()
-    ]
+    model_obj = obj.objects.filter(pk=pk).exists()
 
-    model_info = {}
+    if model_obj:
+        model_obj = obj.objects.get(pk=pk)
+        # get the models fields
+        fields = [
+            i.name for i in model_obj._meta.get_fields()
+        ]
 
-    # Looping through fields of model to get its value to save in model_info
-    for i in fields:
-        try:
-            attribute_value = getattr(model_obj, i)
-            # checks if a instance of a models to serialize the id
-            if (isinstance(attribute_value, (Product, Supplier))):
-                model_info[i] = attribute_value.serializable_value('id')
-            else:
-                model_info[i] = getattr(model_obj, i)
-        except:
-            pass
+        model_info = {}
 
-    return model_info
+        # Looping through fields of model to get its value to save in model_info
+        for i in fields:
+            try:
+                attribute_value = getattr(model_obj, i)
+                # checks if a instance of a models to serialize the id
+                if (isinstance(attribute_value, (Product, Supplier))):
+                    model_info[i] = attribute_value.serializable_value('id')
+                else:
+                    model_info[i] = getattr(model_obj, i)
+            except:
+                pass
+
+        return model_info
+    else:
+        return {
+            'isError': True,
+            'errorInfo': 'Id does not exists'
+        }
 
 
 def update_product(product_data):
