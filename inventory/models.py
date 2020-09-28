@@ -2,58 +2,49 @@ from django.db import models
 from django.db.models.functions import Coalesce
 
 
-class ProductQuerySet(models.QuerySet):
-
+class QuerySet(models.QuerySet):
     def search(self, **kwargs):
         ''' This function is responsible for searching product '''
-        product_searched = self # the Product objects
+        q = self  # the query objects
         if kwargs.get('query', ''):
-            query = kwargs['query'] # the query to search
-            if kwargs.get('query_by') == 'description':
-                product_searched = product_searched.filter(
-                    description__icontains=query)
-            elif kwargs.get('query_by') == 'stock':
-                # filter products with query in barcode
+            query = kwargs['query']  # the query to search
+            if kwargs.get('query_by'):
                 try:
-                    query = int(query)
+                    query_by = {
+                        f'{kwargs.get("query_by")}__icontains': kwargs.get('query')
+                    }
+                    q = q.filter(**query_by)
                 except:
-                    query = -1
-
-                product_searched = product_searched.filter(stock=query)
-            elif kwargs.get('query_by') == 'barcode':
-                # filter products with query in barcode
-                product_searched = product_searched.filter(
-                    barcode__icontains=query)
-            else:
-                # filter products with query in name
-                product_searched = product_searched.filter(
-                    name__icontains=kwargs['query'])
+                    pass
 
         if kwargs.get('order_type'):
             # order product ascending or descending with it's order_by value
-            # (e.g. order_by = "stock", order_by="name", order_by="stock") 
+            # (e.g. order_by = "stock", order_by="name", order_by="stock")
             # order_type has two choices only desc or ascn
 
             if kwargs.get('order_type') == 'desc':
-                order_by = f'-{kwargs["order_by"]}'
-                product_searched = product_searched.order_by(order_by)
+                if kwargs.get('order_by'):
+                    order_by = f'-{kwargs["order_by"]}'
+                    q = q.order_by(order_by)
             else:
-                order_by = f'{kwargs["order_by"]}'
-                product_searched = product_searched.order_by(
-                    kwargs['order_by'])
+                if kwargs.get('order_by'):
+                    order_by = f'{kwargs["order_by"]}'
+                    q = q.order_by(
+                        kwargs['order_by'])
 
         if kwargs.get('query_limit'):
             # limit query with query_limit value
-            product_searched = product_searched[0:kwargs['query_limit']]
+            q = q[0:kwargs['query_limit']]
 
-        return product_searched
-
+        return q
 
 class Supplier(models.Model):
     name = models.CharField(max_length=30)
     mobile_number = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
     address = models.CharField(blank=True, max_length=100)
+
+    objects = QuerySet.as_manager()
 
 
 class Product(models.Model):
@@ -64,7 +55,7 @@ class Product(models.Model):
     supplier = models.ForeignKey(
         Supplier, on_delete=models.CASCADE, null=True, blank=True)
 
-    objects = ProductQuerySet.as_manager()
+    objects = QuerySet.as_manager()
 
 
 class Transaction(models.Model):
@@ -72,6 +63,8 @@ class Transaction(models.Model):
     stock = models.IntegerField()
     note = models.TextField(blank=True)
     created_on = models.DateTimeField(auto_now=True)
+
+    objects = QuerySet.as_manager()
 
     def save(self, *args, **kwargs):
         self.product.stock = self.product.stock + self.stock
