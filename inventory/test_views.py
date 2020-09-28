@@ -8,7 +8,7 @@ from django.test import Client, TestCase
 from . import forms, models
 
 
-class ViewProduct(TestCase):
+class ProductView(TestCase):
     def setUp(self):
         # create 10 supplier
         for i in range(0, 10):
@@ -43,16 +43,16 @@ class ViewProduct(TestCase):
                 stock=random.randint(1, 100),
             )
 
-    def queryProduct(self):
+    def testQueryProduct(self):
         ''' Testing for querying a product '''
         client = Client()
 
         response = client.get('/query/product/', {
-            'json_data': dumps(
+            'jsonData': dumps(
                 {
                     'filters': {                                # creating the query data
-                        'query': '100',
-                        'query_by': 'barcode',
+                        'query': '10',
+                        'query_by': 'test',
                         'query_limit': 100,
                         'order_by': 'id',
                         'order_type': 'ascn'
@@ -62,7 +62,8 @@ class ViewProduct(TestCase):
         })
 
         response_data = loads(response.content)
-        [print(i) for i in response_data['responseData']]
+        # [print(i) for i in response_data['responseData']]
+
 
     def testCreateProduct(self):
         client = Client()
@@ -79,13 +80,13 @@ class ViewProduct(TestCase):
 
         response = client.post(
             '/product/create/', {
-                'json_data': dumps(post_data_required_field_not_supplied)
+                'jsonData': dumps(post_data_required_field_not_supplied)
             })
 
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content)['responseData']
         # check if response has errors
-        self.assertEqual(response_data.get('isError'), True)
+        self.assertTrue(response_data.get('isError'))
 
         # creates the data to send as post request with invalid values in fields
         post_data_invalid = {
@@ -99,13 +100,13 @@ class ViewProduct(TestCase):
         # sending the post data with invalid values
         response = client.post(
             '/product/create/', {
-                'json_data': dumps(post_data_invalid)
+                'jsonData': dumps(post_data_invalid)
             })
 
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content)['responseData']
         # check if response has errors
-        self.assertEqual(response_data.get('isError'), True)
+        self.assertTrue(response_data.get('isError'))
 
         # # print(response_data)
 
@@ -127,14 +128,15 @@ class ViewProduct(TestCase):
         # sending the post data with valid values
         response = client.post(
             '/product/create/', {
-                'json_data': dumps(post_data_valid)
+                'jsonData': dumps(post_data_valid)
             }
         )
 
         self.assertEqual(response.status_code, 200)
+
         response_data = loads(response.content)['responseData']
         # check if response has no errors
-        self.assertEqual(response_data.get('isError'), None)
+        self.assertIsNone(response_data.get('isError'))
 
         # print(response_data)
 
@@ -161,7 +163,7 @@ class ViewProduct(TestCase):
         client = Client()
         response = client.post(
             '/product/create/', {
-                'json_data': dumps(post_data),
+                'jsonData': dumps(post_data),
                 'isMass': True
             }
         )
@@ -190,7 +192,7 @@ class ViewProduct(TestCase):
         # send request
         client = Client()
         response = client.get('/product/read/', {
-            'json_data': dumps(get_data),
+            'jsonData': dumps(get_data),
         })
 
         self.assertEqual(response.status_code, 200)
@@ -215,7 +217,7 @@ class ViewProduct(TestCase):
 
         # sending the request
         client = Client()
-        response = client.post('/product/update/', {'json_data': dumps(data)})
+        response = client.post('/product/update/', {'jsonData': dumps(data)})
 
         self.assertEqual(response.status_code, 200)
 
@@ -230,7 +232,7 @@ class ViewProduct(TestCase):
         # sending the request
         client = Client()
         response = client.post(
-            '/product/delete/', {'json_data': dumps({'productId': 2})})
+            '/product/delete/', {'jsonData': dumps({'productId': 2})})
 
         self.assertEqual(response.status_code, 200)
 
@@ -240,8 +242,121 @@ class ViewProduct(TestCase):
         # sending the request
         client = Client()
         response = client.post(
-            '/product/s/', {'json_data': dumps({'productId': 2})})
+            '/product/s/', {'jsonData': dumps({'productId': 2})})
 
         self.assertEqual(response.status_code, 200)
 
         # print(response.content)
+
+
+class SupplierView(TestCase):
+    def setUp(self):
+        # create 10 suppliers
+        supplier_names = [
+            ''.join(
+                random.choice(string.ascii_letters) for i in range(10)
+            ) for i in range(10)
+        ]
+
+        [models.Supplier.objects.create(name=i) for i in supplier_names]
+
+    def testCreateSupplier(self):
+        client = Client()
+
+        # suppplier valid info to send
+        supplier_valid_info = {
+            'name': 'Supplier Valid Name',
+            'mobile_number': 91204223,
+            'email': 'jhpetalbo@gmail.com',
+            'address': 'brgy. string, python'
+        }
+        
+        response = client.post('/supplier/create/', {
+            'jsonData': dumps(supplier_valid_info)
+        })
+
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+
+        self.assertEqual(len(models.Supplier.objects.filter(**supplier_valid_info)), 1)
+        
+        # print(response_data)
+
+        # supplier invalid info to send
+        supplier_invalid_info = {
+            'mobile': 'a string',
+            'email': 'not an email',
+            'address': 123,
+        }
+
+        response = client.post('/supplier/create/', {
+            'jsonData': dumps(supplier_invalid_info)
+        })
+
+        self.assertEqual(response.status_code, 200)
+
+        response_data = loads(response.content).get('responseData')
+        
+        # check if response has errors
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
+
+    def testReadASupplier(self):
+        def send_request(data):
+            client = Client()
+            response = client.get('/supplier/read/', {
+                'jsonData': dumps(data)
+            })
+
+            return response
+
+        valid_supplier_id = {
+            'supplierId': 10
+        }
+        
+
+        response = send_request(valid_supplier_id)
+        
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        
+        # print(response_data)
+        
+        # supplier id that doesn't exist
+        does_not_exist_supplier_id = {
+            'supplierId': 101
+        }
+
+        response = send_request(does_not_exist_supplier_id)
+
+        # checks response error
+        self.assertEqual(response.status_code, 404)
+
+        # print(response.content)
+
+    def testQuerySupplier(self):
+        def send_request(data):
+            client = Client()
+
+            response = client.get('/query/supplier/', {
+                'jsonData': dumps({
+                    'filters': data
+                })
+            })
+    
+            return response
+
+        filters = {
+            'query': 't',
+            'query_by': 'name',
+            'query_limit': 2,
+            'order_by': 'name',
+            'order_type': 'desc'
+        }
+
+        response = send_request(filters)
+        self.assertEqual(response.status_code, 200)
+        print(response.content)
+
+

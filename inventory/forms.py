@@ -15,7 +15,7 @@ class SupplierForm(forms.ModelForm):
         fields = '__all__'
 
 
-class QueryProductForm(forms.Form):
+class QueryForm(forms.Form):
     query = forms.CharField()
     query_by = forms.CharField()
     query_limit = forms.IntegerField()

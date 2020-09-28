@@ -11,10 +11,10 @@ def product_action(request, action):
 
     if request.method == 'GET':
         if action == 'read':
-            loaded_data = json.loads(request.GET.get('json_data'))
+            loaded_data = json.loads(request.GET.get('jsonData'))
             if loaded_data.get('productId'):
                 # fields "productId" required
-                response_data = read_product(loaded_data['productId'])
+                response_data = read_model(loaded_data['productId'], Product)
             else:
                 response_data = {
                     'isError': True,
@@ -26,7 +26,7 @@ def product_action(request, action):
                 'errorInfo': f'action {action} is not possible'
             }
     else:
-        loaded_data = json.loads(request.POST.get('json_data'))
+        loaded_data = json.loads(request.POST.get('jsonData'))
 
         if action == 'create':
             # fields "name" required, "stock" required
@@ -72,16 +72,36 @@ def supplier_action(request, action):
     # CREATE, READ, UPDATE, and DELETE supplier
     if request.method == 'GET':
         if action == 'read':
-            pass
+            loaded_data = json.loads(request.GET.get('jsonData'))
+
+            supplier_id = loaded_data.get('supplierId')
+
+            if supplier_id:
+                return HttpResponse(json.dumps(
+                    {
+                        'responseData': read_model(supplier_id, Supplier)
+                    }
+                ))
+            else:
+                return HttpResponse(json.dumps(
+                    {
+                        'isError': True,
+                        'errorInfo': 'Please provide a supplier id'
+                    }
+                ))
+
     else:
-        loaded_data = json.loads(request.POST.get('json_data'))
+        loaded_data = json.loads(request.POST.get('jsonData'))
 
         if action == 'create':
             # For creating a new supplier
             # fields "name" required, "mobile_number", "email", "address"
 
             response_data = create_supplier(loaded_data)
-            # return HttpResponse(json.dumps(response))
+
+            return HttpResponse(json.dumps({
+                'responseData': response_data
+            }))
 
         elif action == 'update':
             pass
@@ -100,33 +120,31 @@ def supplier_action(request, action):
 
 def query(request, q_model):
     ''' This function handles the query of the models '''
-    
-    # JSON OBJECT TO SEND 
+
+    # JSON OBJECT TO SEND
     # filters = {
     #   "query": "the query to search"   => optional, default is all
-    #   "query_by": "the field to query from the Product model" => default is "name"
+    #   "query_by": "the field to query from the model" => default is "name"
     #   "query_limit": 100, => optional, must be an integer
-    #   "order_by": "the field from the Product model"
+    #   "order_by": "the field from the model"
     #    "order_type": "desc or ascn" => two choices only
     # }
 
-    query_info = json.loads(request.GET.get('json_data'))
+    query_info = json.loads(request.GET.get('jsonData'))
     # loads the filter
     filters = query_info.get('filters')
-
+    # validate values with django forms
+    filter_form = QueryForm(filters)
     if q_model == 'product':
-        # validate values with django forms
-        filter_form = QueryProductForm(filters)
-
         if filter_form.is_valid():
             # search query
             q = Product.objects.search(**filter_form.cleaned_data)
 
             # get fields and it's values
-            product_infos = [read_product(i.pk) for i in q]
+            product_infos = [read_model(i.pk, Product) for i in q]
         else:
             q = Product.objects.all()
-            product_infos = [read_product(i.pk) for i in q]
+            product_infos = [read_model(i.pk, Product) for i in q]
 
         return HttpResponse(
             json.dumps(
@@ -137,7 +155,30 @@ def query(request, q_model):
         )
 
     elif q_model == 'supplier':
-        pass
+        if filter_form.is_valid():
+            # queries the supplier objects
+            q = Supplier.objects.search(**filter_form.cleaned_data)
+            
+            # gets the supplier info
+            supplier_infos = [read_model(i.pk, Supplier) for i in q]
+            
+            return HttpResponse(
+                json.dumps(
+                    {
+                        'responseData': supplier_infos
+                    }
+                )
+            )
+        else:
+            # if query forms has errors
+            return HttpResponse(
+                json.dumps(
+                    {
+                        'isError': True,
+                        'errorInfo': filter_form.errors.as_json()
+                    }
+                )
+            )
     elif q_model == 'transaction':
         pass
     else:
@@ -184,28 +225,31 @@ def mass_create_product(loaded_data):
     return [create_product(data) for data in loaded_data]
 
 
-def read_product(pk):
-    ''' This give the information of a product '''
-    product = get_object_or_404(Product, pk=pk)
+def read_model(pk, obj):
+    ''' This gives the information of a Model from Obj '''
 
-    # get field names of product
+    model_obj = get_object_or_404(obj, pk=pk)
+    from inventory import models
+    # get the models fields
     fields = [
-        i.name for i in product._meta.get_fields() if i.name != 'transaction'
+        i.name for i in model_obj._meta.get_fields()
     ]
 
-    product_info = {}
+    model_info = {}
+
+    # Looping through fields of model to get its value to save in model_info
     for i in fields:
-        product_info[i] = getattr(product, i)
+        try:
+            attribute_value = getattr(model_obj, i)
+            # checks if a instance of a models to serialize the id
+            if (isinstance(attribute_value, (Product, Supplier))):
+                model_info[i] = attribute_value.serializable_value('id')
+            else:
+                model_info[i] = getattr(model_obj, i)
+        except:
+            pass
 
-    # convert supplier object to json can read
-    try:
-        product_info['supplier'] = product_info['supplier'].serializable_value(
-            'id'
-        )
-    except:
-        pass
-
-    return product_info
+    return model_info
 
 
 def update_product(product_data):
