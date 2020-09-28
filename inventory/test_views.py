@@ -60,7 +60,7 @@ class ProductView(TestCase):
             )
 
     def testQuery(self):
-        ''' Testing for querying a product '''
+        ''' Testing query product '''
         client = Client()
 
         response = client.get('/query/product/', {
@@ -81,7 +81,7 @@ class ProductView(TestCase):
         # [print(i) for i in response_data['responseData']]
 
     def testCreate(self):
-        ''' testing product create'''
+        ''' Testing product create'''
         client = Client()
 
         invalid_product_name = random.choice([None, '', 1])
@@ -157,7 +157,7 @@ class ProductView(TestCase):
         # print(response_data)
 
     def testMassCreate(self):
-
+        ''' Testing product mass create '''
         # create 10 product name
         product_names = [
             ''.join([
@@ -190,6 +190,7 @@ class ProductView(TestCase):
         # print(response_data)
 
     def testRead(self):
+        ''' Testing product read '''
         # creates product ids to get
         productIds = [i for i in range(1, 101)]
 
@@ -216,6 +217,7 @@ class ProductView(TestCase):
         # print(response.content)
 
     def testUpdate(self):
+        ''' Testing product update. '''
         random_pk = random.randint(0, 100)
         prev_product = models.Product.objects.get(pk=random_pk)
 
@@ -238,8 +240,8 @@ class ProductView(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # check if product is updated
-        self.assertEqual(models.Product.objects.filter(
-            **data['productInfo']).exists(), True)
+        self.assertTrue(models.Product.objects.filter(
+            **data['productInfo']).exists())
 
         # print(response.content)
 
@@ -255,6 +257,7 @@ class ProductView(TestCase):
         # print(response.content)
 
     def testActionUnidentified(self):
+        ''' Testing product action unidentified '''
         # sending the request
         client = Client()
         response = client.post(
@@ -277,7 +280,7 @@ class SupplierView(TestCase):
         [models.Supplier.objects.create(name=i) for i in supplier_names]
 
     def testCreate(self):
-        ''' testing supplier create'''
+        ''' Testing supplier create'''
         # suppplier valid info to send
         supplier_valid_info = {
             'name': 'Supplier Valid Name',
@@ -313,7 +316,7 @@ class SupplierView(TestCase):
         # print(response_data)
 
     def testRead(self):
-        ''' testing supplier read '''
+        ''' Testing supplier read '''
 
         valid_supplier_id = {
             'supplierId': 10
@@ -344,7 +347,7 @@ class SupplierView(TestCase):
         # print(response.content)
 
     def testQuery(self):
-        ''' testing supplier query '''
+        ''' Testing supplier query '''
         filters = {
             'query': 't',
             'query_by': 'name',
@@ -359,7 +362,7 @@ class SupplierView(TestCase):
         # print(response.content)
 
     def testDelete(self):
-        ''' testing supplier delete '''
+        ''' Testing supplier delete '''
         url = '/supplier/delete/'
 
         # sending valid data
@@ -379,10 +382,10 @@ class SupplierView(TestCase):
         invalid_data = {
             'supplierId': 100
         }
-        
+
         response = send_request(invalid_data, url)
         response_data = loads(response.content).get('responseData')
-        
+
         self.assertTrue(response_data.get('isError'))
 
         # print(response_data)
@@ -391,50 +394,132 @@ class SupplierView(TestCase):
         invalid_data = {
             'id': 100
         }
-        
+
         response = send_request(invalid_data, url)
         response_data = loads(response.content).get('responseData')
-        
+
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
+
+    def testUpdate(self):
+        ''' Testing supplier update '''
+        url = '/supplier/update/'
+
+        previous_supplier = models.Supplier.objects.get(pk=1)
+
+        # sending valid supplier info
+        valid_supplier_info = {
+            'supplierId': 1,
+            'supplierInfo': {
+                'name': 'Supplier Name updated',
+                'email': 'supplieremail@updated.com',
+                'address': 'supplier updated address'
+            }
+        }
+
+        response = send_request(valid_supplier_info, url)
+
+        # checking error
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertNotEqual(
+            previous_supplier.name,
+            valid_supplier_info['supplierInfo']['name']
+        )
+
+        # print(response_data)
+
+        # sending invalid supplier info
+        invalid_supplier_info = {
+            'n': 'test',
+            'test': 123,
+            'tes2': None
+        }
+
+        # checking error
+        response = send_request(invalid_supplier_info, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
         self.assertTrue(response_data.get('isError'))
 
         # print(response_data)
 
 
+class TransactionView(TestCase):
+    def setUp(self):
+        from datetime import datetime
+        # creating 100 transactions
+        product = models.Product.objects.create(
+            pk=1, name='test product', stock=100)
+        for i in range(100):
+            stock_to_add = (i+1) * 20
+            models.Transaction(
+                product=product, stock=stock_to_add, note='test note').save()
+
+    def testCreate(self):
+        ''' Testing create transaction '''
+        url = '/transaction/create/'
+
+        # sending request with valid transaction info
+        valid_transaction_info = {
+            'id': 101,
+            'product': 1,
+            'stock': 100,
+            'note': 'created test note'
+        }
+
+        response = send_request(valid_transaction_info, url)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = loads(response.content).get('responseData')
+        # check if transaction is saved in database
+        self.assertTrue(models.Transaction.objects.filter(pk=101).exists())
+        # print(response_data)
+
+        # sending request with invalid info
+        invalid_transaction_info = {
+            'name': 'test',
+            'test': 'ting'
+        }
+
+        response = send_request(invalid_transaction_info, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+        self.assertTrue(response_data.get('isError'))
+
     def testUpdate(self):
-        url = '/supplier/update/'
+        ''' Testing update transaction '''
+        url = '/transaction/update/'
 
-        previous_supplier = models.Supplier.objects.get(pk=1)
-        
-        # sending valid supplier info
-        valid_supplier_info = {
-            'supplierId': 1,
-            'name': 'Supplier Name updated',
-            'email': 'supplieremail@updated.com',
-            'address': 'supplier updated address'
+        previous_transaction = models.Transaction.objects.get(pk=1)
+        valid_transaction_info = {
+            'transactionId': previous_transaction.id,
+            'transactionInfo': {
+                'product': 1,
+                'stock': 1010,
+                'note': 'updated transaction note'
+            }
         }
 
-        response = send_request(valid_supplier_info, url)
-        
-        # checking error
+        response = send_request(valid_transaction_info, url)
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content).get('responseData')
-        self.assertNotEqual(previous_supplier.name, valid_supplier_info['name'])
-        print(response_data)
+        # check if updated product saved in database
+        # print(response_data)
 
-        # sending invalid supplier info
-        invalid_supplier_info = {
-            'n': 'test',
-            'test', 123,
-            'tes2', None
+        invalid_transaction_info = {
+            'transactionId': 100000,  # testing for id not in database
+            # 'transactionId': None,
+            'transactionInfo': {
+                # 'product': 1,
+                'stock': 20,
+                'note': 'invalid note'
+            }
         }
-        
-        # checking error
-        response = send_request(invalid_supplier_info, url)
-        self.assertEqual(response.status_code, 200)
+
+        response = send_request(invalid_transaction_info, url)
         response_data = loads(response.content).get('responseData')
-        self.assertTrue(response_data.get('isError')) 
-        print(response_data)           
-
-
-
-
+        # print(response_data)
+        self.assertTrue(response_data.get('isError'))

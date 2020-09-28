@@ -35,11 +35,13 @@ def product_action(request, action):
             if request.POST.get('isMass'):
                 # creates multiple product
                 product_infos = loaded_data
-                response_data = mass_create_product(product_infos)
+                response_data = mass_create_model(
+                    product_infos, Product, ProductForm)
             else:
                 # create a single product
                 product_info = loaded_data
-                response_data = create_product(product_info)
+                response_data = create_model(
+                    product_info, Product, ProductForm)
 
         elif action == 'update':
             #  JSON OBJECT TO SEND
@@ -51,7 +53,8 @@ def product_action(request, action):
             #       "supplier": 2,              # optional must be a supplier primary key
             #       "description": "exDesc"     # optional
             # }}
-            response_data = update_product(loaded_data)
+            response_data = update_model(loaded_data.get(
+                'productId'),  loaded_data.get('productInfo'), Product, ProductForm)
 
         elif action == 'delete':
             # fields required productId
@@ -81,9 +84,9 @@ def supplier_action(request, action):
                 response_data = read_model(supplier_id, Supplier)
             else:
                 response_data = {
-                        'isError': True,
-                        'errorInfo': 'Please provide a supplier id'
-                    }
+                    'isError': True,
+                    'errorInfo': 'Please provide a supplier id'
+                }
         else:
             response_data = {
                 'isError': True,
@@ -95,16 +98,19 @@ def supplier_action(request, action):
 
         if action == 'create':
             # For creating a new supplier
-            # fields 
-            # "name" required 
+            # fields
+            # "name" required
             # "mobile_number" optional
             # "email" optional
             # "address" optional
 
-            response_data = create_supplier(loaded_data)
+            response_data = create_model(loaded_data, Supplier, SupplierForm)
 
         elif action == 'update':
-            pass
+            # updating a supplier
+            response_data = update_model(loaded_data.get(
+                'supplierId'), loaded_data.get('supplierInfo'), Supplier, SupplierForm)
+
         elif action == 'delete':
             # for deleting supplier
             # fields "supplierId"
@@ -133,6 +139,47 @@ def supplier_action(request, action):
             }
         )
 
+    )
+
+
+def transaction_action(request, action):
+    if request.method == 'GET':
+        loaded_data = json.loads(request.GET.get('jsonData'))
+        pass
+    else:
+        loaded_data = json.loads(request.POST.get('jsonData'))
+
+        if action == 'create':
+            transaction_info = loaded_data
+            response_data = create_model(
+                transaction_info, Transaction, TransactionForm)
+        elif action == 'update':
+            transaction_id = loaded_data.get('transactionId')
+            transaction_info = loaded_data.get('transactionInfo')
+            if transaction_id:
+                response_data = update_model(
+                    transaction_id, transaction_info, Transaction, TransactionForm)
+            else:
+                response_data = {
+                    'isError': True,
+                    'errorInfo': 'Please provide a transaction Id'
+                }
+        elif action == 'read':
+            pass
+        elif action == 'delete':
+            pass
+        else:
+            response_data = {
+                'isError': True,
+                'errorInfo': f'please choose a valid action. ( create, read, update, delete )'
+            }
+
+    return HttpResponse(
+        json.dumps(
+            {
+                'responseData': response_data
+            }
+        )
     )
 
 
@@ -205,29 +252,16 @@ def query(request, q_model):
             json.dumps(
                 {
                     'isError': True,
-                    'errorInfo': 'models to query does not exist.'
+                    'errorInfo': 'models to query does not exist. Please choose between ( product, supplier, and transaction)'
                 }
             )
         )
 
 
-def create_supplier(supplier_info):
-    # creates a new supplier
-    supplier = SupplierForm(supplier_info)
-    if supplier.is_valid():
-        supplier.save()
+def create_model(model_info, model_obj, model_form):
+    # creates a new model
+    form = model_form(model_info)
 
-        return supplier.data
-    else:
-        return {
-            'isError': True,
-            'errorInfo': supplier.errors.as_json()
-        }
-
-
-def create_product(product_info):
-    ''' This creates a product '''
-    form = ProductForm(product_info)
     if form.is_valid():
         form.save()
         return form.data
@@ -238,9 +272,9 @@ def create_product(product_info):
         }
 
 
-def mass_create_product(loaded_data):
-    ''' This creates multiple product '''
-    return [create_product(data) for data in loaded_data]
+def mass_create_model(loaded_data, model_obj, model_form):
+    ''' This creates multiple model objects '''
+    return [create_model(data, model_obj, model_form) for data in loaded_data]
 
 
 def read_model(pk, obj):
@@ -277,14 +311,27 @@ def read_model(pk, obj):
         }
 
 
-def update_product(product_data):
-    product_id = product_data['productId']
-    product_info = product_data['productInfo']
-
-    product = Product.objects.get(pk=product_id)
-    form = ProductForm(product_info, instance=product)
-    if form.is_valid():
-        form.save()
-        return form.data
+def update_model(model_id, model_info, model_obj, model_form):
+    ''' This function updates an model '''
+    if model_id:
+        if not model_obj.objects.filter(pk=model_id).exists():
+            return {
+                'isError': True,
+                'errorInfo': f'ID: {model_id} does not exists'
+            }
+        # changing info of model
+        model_obj = model_obj.objects.get(pk=model_id)
+        form = model_form(model_info, instance=model_obj)
+        if form.is_valid():
+            form.save()
+            return form.data
+        else:
+            return {
+                'isError': True,
+                'errorInfo': form.errors.as_json()
+            }
     else:
-        return form.errors.as_json()
+        return {
+            'isError': True,
+            'errorInfo': 'Please provide a id'
+        }

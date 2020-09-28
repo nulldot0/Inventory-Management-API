@@ -65,7 +65,3 @@ class Transaction(models.Model):
     created_on = models.DateTimeField(auto_now=True)
 
     objects = QuerySet.as_manager()
-
-    def save(self, *args, **kwargs):
-        self.product.stock = self.product.stock + self.stock
-        super(Transaction, self).save(self, *args, **kwargs)

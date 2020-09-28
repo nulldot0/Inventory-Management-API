@@ -15,6 +15,12 @@ class SupplierForm(forms.ModelForm):
         fields = '__all__'
 
 
+class TransactionForm(forms.ModelForm):
+    class Meta:
+        model = Transaction
+        fields = '__all__'
+
+
 class QueryForm(forms.Form):
     query = forms.CharField()
     query_by = forms.CharField()
