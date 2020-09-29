@@ -12,14 +12,7 @@ def product_action(request, action):
     if request.method == 'GET':
         if action == 'read':
             loaded_data = json.loads(request.GET.get('jsonData'))
-            if loaded_data.get('productId'):
-                # fields "productId" required
-                response_data = read_model(loaded_data['productId'], Product)
-            else:
-                response_data = {
-                    'isError': True,
-                    'errorInfo': 'Please provide a product ID'
-                }
+            response_data = read_model(loaded_data.get('productId'), Product, 'product')
         else:
             response_data = {
                 'isError': True,
@@ -58,10 +51,8 @@ def product_action(request, action):
 
         elif action == 'delete':
             # fields required productId
-            product_id = loaded_data['productId']
-            product = get_object_or_404(Product.objects.all(), pk=product_id)
-            product.delete()
-            response_data = f'product with id {product_id} has been deleted'
+            product_id = loaded_data.get('productId')
+            response_data = delete_model(product_id, Product, 'product')
         else:
             response_data = {
                 'isError': True,
@@ -81,7 +72,7 @@ def supplier_action(request, action):
             supplier_id = loaded_data.get('supplierId')
 
             if supplier_id:
-                response_data = read_model(supplier_id, Supplier)
+                response_data = read_model(supplier_id, Supplier, 'supplier')
             else:
                 response_data = {
                     'isError': True,
@@ -115,19 +106,8 @@ def supplier_action(request, action):
             # for deleting supplier
             # fields "supplierId"
             supplier_id = loaded_data.get('supplierId')
-            if Supplier.objects.filter(pk=supplier_id).exists():
-                Supplier.objects.get(pk=supplier_id).delete()
-                response_data = f'supplier with id {supplier_id} deleted'
-            else:
-                if supplier_id == None:
-                    errorInfo = 'please provide an "supplierId" to delete'
-                else:
-                    errorInfo = f'supplier with id {supplier_id} does not exists.'
 
-                response_data = {
-                    'isError': True,
-                    'errorInfo': errorInfo
-                }
+            response_data = delete_model(supplier_id, Supplier, 'supplier')
         else:
             # return this message if action is invalid
             response_data = 'choose a valid action. (create, delete, read, and update)'
@@ -145,7 +125,13 @@ def supplier_action(request, action):
 def transaction_action(request, action):
     if request.method == 'GET':
         loaded_data = json.loads(request.GET.get('jsonData'))
-        pass
+        if action == 'read':
+            response_data = read_model(loaded_data.get('transactionId'), Transaction, 'transaction')
+        else:
+            response_data = {
+                'isError': True,
+                'errorInfo': 'action "{action}" not possible.'
+            }
     else:
         loaded_data = json.loads(request.POST.get('jsonData'))
 
@@ -164,10 +150,10 @@ def transaction_action(request, action):
                     'isError': True,
                     'errorInfo': 'Please provide a transaction Id'
                 }
-        elif action == 'read':
-            pass
         elif action == 'delete':
-            pass
+            transaction_id = loaded_data.get('transactionId')
+            response_data = delete_model(
+                transaction_id, Transaction, 'transaction')
         else:
             response_data = {
                 'isError': True,
@@ -206,10 +192,10 @@ def query(request, q_model):
             q = Product.objects.search(**filter_form.cleaned_data)
 
             # get fields and it's values
-            product_infos = [read_model(i.pk, Product) for i in q]
+            product_infos = [read_model(i.pk, Product, 'product') for i in q]
         else:
             q = Product.objects.all()
-            product_infos = [read_model(i.pk, Product) for i in q]
+            product_infos = [read_model(i.pk, Product, 'product') for i in q]
 
         return HttpResponse(
             json.dumps(
@@ -225,7 +211,7 @@ def query(request, q_model):
             q = Supplier.objects.search(**filter_form.cleaned_data)
 
             # gets the supplier info
-            supplier_infos = [read_model(i.pk, Supplier) for i in q]
+            supplier_infos = [read_model(i.pk, Supplier, 'supplier') for i in q]
 
             return HttpResponse(
                 json.dumps(
@@ -248,11 +234,12 @@ def query(request, q_model):
         pass
     else:
         # return an error response when models to query is invalid
+        model_list = ['product', 'supplier', 'transaction']
         return HttpResponse(
             json.dumps(
                 {
                     'isError': True,
-                    'errorInfo': 'models to query does not exist. Please choose between ( product, supplier, and transaction)'
+                    'errorInfo': f'models to query does not exist. Please choose between ( {", ".join(model_list[:-1])}, and {model_list[-1]})'
                 }
             )
         )
@@ -277,10 +264,18 @@ def mass_create_model(loaded_data, model_obj, model_form):
     return [create_model(data, model_obj, model_form) for data in loaded_data]
 
 
-def read_model(pk, obj):
+def read_model(pk, obj, model_name):
     ''' This gives the information of a Model from Obj '''
+    from datetime import datetime  # imported for fields with instance as datetime 
+    model_tuple_check = (Product, Supplier) # used for for checking instances
 
-    model_obj = obj.objects.filter(pk=pk).exists()
+    try:
+        model_obj = obj.objects.filter(pk=pk).exists()
+    except ValueError:
+        return {
+            'isError': True,
+            'errorInfo': f'{model_name} id got an unidentified value.'
+        }
 
     if model_obj:
         model_obj = obj.objects.get(pk=pk)
@@ -295,9 +290,11 @@ def read_model(pk, obj):
         for i in fields:
             try:
                 attribute_value = getattr(model_obj, i)
-                # checks if a instance of a models to serialize the id
-                if (isinstance(attribute_value, (Product, Supplier))):
+                # checks if a instance of a models to for json serialization
+                if isinstance(attribute_value, model_tuple_check):
                     model_info[i] = attribute_value.serializable_value('id')
+                elif isinstance(attribute_value, datetime): # check if a datetime instance
+                    model_info[i] = attribute_value.strftime('%Y-%m-%d %H:%M:%S:%f')
                 else:
                     model_info[i] = getattr(model_obj, i)
             except:
@@ -307,7 +304,7 @@ def read_model(pk, obj):
     else:
         return {
             'isError': True,
-            'errorInfo': 'Id does not exists'
+            'errorInfo': f'{model_name} id does not exists'
         }
 
 
@@ -334,4 +331,29 @@ def update_model(model_id, model_info, model_obj, model_form):
         return {
             'isError': True,
             'errorInfo': 'Please provide a id'
+        }
+
+
+def delete_model(model_id, model_obj, model_name):
+    ''' This function deletes a model '''
+    if model_id:
+        try:
+            if model_obj.objects.filter(pk=model_id).exists():
+                model_obj.objects.get(pk=model_id)
+                return f'{model_name} with id {model_id} deleted'
+            else:
+                return {
+                    'isError': True,
+                    'errorInfo': f'{model_name} with id {model_id} does not exists.'
+                }
+        except ValueError:
+            return {
+                'isError': True,
+                'errorInfo': f'{model_name} got an unidentified value'
+            }
+
+    else:
+        return {
+            'isError': True,
+            'errorInfo': f'Please provide a {model_name} id'
         }

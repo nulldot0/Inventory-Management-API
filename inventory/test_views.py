@@ -191,30 +191,29 @@ class ProductView(TestCase):
 
     def testRead(self):
         ''' Testing product read '''
-        # creates product ids to get
-        productIds = [i for i in range(1, 101)]
-
+        url = '/product/read/'
         # read info of a product
-        get_data = {
-            'productId': 101
+        valid_product_id = {
+            'productId': 22
         }
 
-        # create a product with no supplier
-        models.Product(**{
-            'pk': 101,
-            'name': 'test read product',
-            'description': 'description',
-        }).save()
-
-        # send request
-        client = Client()
-        response = client.get('/product/read/', {
-            'jsonData': dumps(get_data),
-        })
-
+        response = send_request(valid_product_id, url, method='GET')
         self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
 
-        # print(response.content)
+        # print(response_data)
+
+        invalid_product_id = {
+            'productId': 200
+            # 'productId': None
+        }
+
+        response = send_request(invalid_product_id, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError'))
+        
+        # print(response_data)
 
     def testUpdate(self):
         ''' Testing product update. '''
@@ -246,15 +245,28 @@ class ProductView(TestCase):
         # print(response.content)
 
     def testDelete(self):
+        url = '/product/delete/'
 
-        # sending the request
-        client = Client()
-        response = client.post(
-            '/product/delete/', {'jsonData': dumps({'productId': 2})})
-
+        # sending request with valid product id
+        valid_product_id = {
+            'productId': 2
+        }
+        response = send_request(valid_product_id, url)
         self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
 
-        # print(response.content)
+        # print(response_data)
+        # sending request with invalid product id
+        invalid_product_id = {
+            'productId': 'te'
+        }
+
+        response = send_request(invalid_product_id, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
 
     def testActionUnidentified(self):
         ''' Testing product action unidentified '''
@@ -489,6 +501,32 @@ class TransactionView(TestCase):
         # print(response_data)
         self.assertTrue(response_data.get('isError'))
 
+    def testRead(self):
+        ''' Testing read transaction '''
+
+        url = '/transaction/read/'
+        
+        # sending request with valid transaction id
+        valid_transaction_id = {
+            'transactionId': 2
+        }
+
+        response = send_request(valid_transaction_id, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+
+        # sending request with invalid transcation id
+        invalid_transaction_id = {
+            'transactionId': 1000
+            # 'trasactionId': None
+        }
+
+        response = send_request(invalid_transaction_id, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+
     def testUpdate(self):
         ''' Testing update transaction '''
         url = '/transaction/update/'
@@ -523,3 +561,30 @@ class TransactionView(TestCase):
         response_data = loads(response.content).get('responseData')
         # print(response_data)
         self.assertTrue(response_data.get('isError'))
+
+    def testDelete(self):
+        ''' Testing transcation delete '''
+        url = '/transaction/delete/'
+
+        # sending request with valid transaction id
+        valid_transaction_id = {
+            'transactionId': 2
+        }
+
+        response = send_request(valid_transaction_id, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+
+        # sending request with invalid transaction id
+        invalid_transaction_id = {
+            'transactionId': 1002
+        }
+
+        response = send_request(invalid_transaction_id, url)
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # checking if response has errors
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)
