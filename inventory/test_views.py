@@ -588,6 +588,11 @@ class QueryView(TestCase):
                 name=name_generator,
                 stock=random.randint(1, 100),
             )
+        
+        # create 100 transaction
+        for i in range(100):
+            note = ''.join([ random.choice(string.ascii_letters) for i in range(10) ])
+            models.Transaction.objects.create(product_id=1, stock=random.randint(100, 1000), note=f'note {note}')
 
     def testProductQuery(self):
         ''' Testing product Query'''
@@ -659,9 +664,10 @@ class QueryView(TestCase):
         url = '/query/transaction/'
 
         valid_filters = {
-            'query': '2020-09-29',
-            'query_by': 'created_on',
-            'query_limit': 100,
+            'query': 'xb',
+            # 'query_by_suffix': 'date',
+            'query_by': 'note',
+            # 'query_limit': 1,
             'order_type': 'desc',
             'order_by': 'created_on'
         }
@@ -670,4 +676,17 @@ class QueryView(TestCase):
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content).get('responseData')
 
-        print(response_data)
+        # print(response_data)
+
+        invalid_filters = {
+            'query_by': 'test',
+            'order_type': 'desc',
+            'order_by': 'tid',
+        }
+
+        response = send_request(invalid_filters, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)

@@ -183,16 +183,19 @@ def query(request, q_model):
 
     filters = json.loads(request.GET.get('jsonData'))
     # validate values with django forms
-    filter_form = QueryForm(filters)
     if q_model == 'product':
+        filter_form = QueryForm(filters)
+
         # queries the product objects
         response_data =  query_search(filter_form, Product, 'product')
 
     elif q_model == 'supplier':
+        filter_form = QueryForm(filters)
         # queries the supplier objects
         response_data = query_search(filter_form, Supplier, 'supplier')
 
     elif q_model == 'transaction':
+        filter_form = TransactionQueryForm(filters)
         # queries the transaction objects
         response_data =  query_search(filter_form, Transaction, 'transaction')
     else:
