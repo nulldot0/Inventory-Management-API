@@ -174,76 +174,55 @@ def query(request, q_model):
 
     # JSON OBJECT TO SEND
     # filters = {
-    #   "query": "the query to search"   => optional, default is all
+    #   "query": "the query to search"   => optional, default is ''
     #   "query_by": "the field to query from the model" => default is "name"
     #   "query_limit": 100, => optional, must be an integer
     #   "order_by": "the field from the model"
     #    "order_type": "desc or ascn" => two choices only
     # }
 
-    query_info = json.loads(request.GET.get('jsonData'))
-    # loads the filter
-    filters = query_info.get('filters')
+    filters = json.loads(request.GET.get('jsonData'))
     # validate values with django forms
     filter_form = QueryForm(filters)
     if q_model == 'product':
-        if filter_form.is_valid():
-            # search query
-            q = Product.objects.search(**filter_form.cleaned_data)
-
-            # get fields and it's values
-            product_infos = [read_model(i.pk, Product, 'product') for i in q]
-        else:
-            q = Product.objects.all()
-            product_infos = [read_model(i.pk, Product, 'product') for i in q]
-
-        return HttpResponse(
-            json.dumps(
-                {
-                    'responseData': product_infos
-                }
-            )
-        )
+        # queries the product objects
+        response_data =  query_search(filter_form, Product, 'product')
 
     elif q_model == 'supplier':
-        if filter_form.is_valid():
-            # queries the supplier objects
-            q = Supplier.objects.search(**filter_form.cleaned_data)
+        # queries the supplier objects
+        response_data = query_search(filter_form, Supplier, 'supplier')
 
-            # gets the supplier info
-            supplier_infos = [read_model(i.pk, Supplier, 'supplier') for i in q]
-
-            return HttpResponse(
-                json.dumps(
-                    {
-                        'responseData': supplier_infos
-                    }
-                )
-            )
-        else:
-            # if query forms has errors
-            return HttpResponse(
-                json.dumps(
-                    {
-                        'isError': True,
-                        'errorInfo': filter_form.errors.as_json()
-                    }
-                )
-            )
     elif q_model == 'transaction':
-        pass
+        # queries the transaction objects
+        response_data =  query_search(filter_form, Transaction, 'transaction')
     else:
         # return an error response when models to query is invalid
         model_list = ['product', 'supplier', 'transaction']
-        return HttpResponse(
-            json.dumps(
-                {
+        response_data = {
                     'isError': True,
                     'errorInfo': f'models to query does not exist. Please choose between ( {", ".join(model_list[:-1])}, and {model_list[-1]})'
                 }
-            )
+                
+    return HttpResponse(
+        json.dumps(
+            {
+                'responseData': response_data
+            }
         )
+    )
 
+def query_search(filter_form, model_obj, model_name):
+    if filter_form.is_valid():
+        q = model_obj.objects.search(**filter_form.cleaned_data)
+        if isinstance(q, dict):
+            return q
+
+        return [read_model(i.pk, model_obj, model_name) for i in q ]
+    else:
+        return {
+            'isError': True,
+            'errorInfo': filter_form.errors.as_json()
+        }
 
 def create_model(model_info, model_obj, model_form):
     # creates a new model
@@ -266,7 +245,7 @@ def mass_create_model(loaded_data, model_obj, model_form):
 
 def read_model(pk, obj, model_name):
     ''' This gives the information of a Model from Obj '''
-    from datetime import datetime  # imported for fields with instance as datetime 
+    from datetime import datetime  # imported for checking fields with instance as datetime 
     model_tuple_check = (Product, Supplier) # used for for checking instances
 
     try:

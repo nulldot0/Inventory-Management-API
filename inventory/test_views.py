@@ -59,27 +59,6 @@ class ProductView(TestCase):
                 stock=random.randint(1, 100),
             )
 
-    def testQuery(self):
-        ''' Testing query product '''
-        client = Client()
-
-        response = client.get('/query/product/', {
-            'jsonData': dumps(
-                {
-                    'filters': {                                # creating the query data
-                        'query': '10',
-                        'query_by': 'test',
-                        'query_limit': 100,
-                        'order_by': 'id',
-                        'order_type': 'ascn'
-                    }
-                }
-            )
-        })
-
-        response_data = loads(response.content)
-        # [print(i) for i in response_data['responseData']]
-
     def testCreate(self):
         ''' Testing product create'''
         client = Client()
@@ -212,7 +191,7 @@ class ProductView(TestCase):
         self.assertEqual(response.status_code, 200)
         response_data = loads(response.content).get('responseData')
         self.assertTrue(response_data.get('isError'))
-        
+
         # print(response_data)
 
     def testUpdate(self):
@@ -358,21 +337,6 @@ class SupplierView(TestCase):
 
         # print(response.content)
 
-    def testQuery(self):
-        ''' Testing supplier query '''
-        filters = {
-            'query': 't',
-            'query_by': 'name',
-            'query_limit': 2,
-            'order_by': 'name',
-            'order_type': 'desc'
-        }
-
-        response = send_request(filters, '/query/supplier/', 'GET')
-        self.assertEqual(response.status_code, 200)
-
-        # print(response.content)
-
     def testDelete(self):
         ''' Testing supplier delete '''
         url = '/supplier/delete/'
@@ -505,7 +469,7 @@ class TransactionView(TestCase):
         ''' Testing read transaction '''
 
         url = '/transaction/read/'
-        
+
         # sending request with valid transaction id
         valid_transaction_id = {
             'transactionId': 2
@@ -588,3 +552,122 @@ class TransactionView(TestCase):
         self.assertTrue(response_data.get('isError'))
 
         # print(response_data)
+
+
+class QueryView(TestCase):
+    def setUp(self):
+        # create 10 supplier
+        for i in range(0, 10):
+            name_generator = ''.join([
+                random.choices(string.ascii_letters)[0] for i in range(0, 10)
+            ])
+            models.Supplier.objects.create(name=name_generator)
+
+        # create 100 product
+        for i in range(0, 50):
+
+            name_generator = ''.join([
+                random.choice(string.ascii_letters) for i in range(0, 10)
+            ])
+
+            barcode_generator = ''.join([
+                random.choice(string.digits) for i in range(0, 12)
+            ])
+
+            # create product with supplier and description
+            models.Product.objects.create(
+                name=name_generator,
+                stock=random.randint(1, 100),
+                barcode=barcode_generator,
+                supplier_id=random.randint(1, 10),
+                description=f'{name_generator} description'
+            )
+
+            # create product without supplier
+            models.Product.objects.create(
+                name=name_generator,
+                stock=random.randint(1, 100),
+            )
+
+    def testProductQuery(self):
+        ''' Testing product Query'''
+
+        url = '/query/product/'
+        # sending request with valid filters
+        valid_filter = {
+            'query': 'aa',
+            'query_by': 'name',
+            'query_limit': 100,
+            'order_by': 'id',
+            'order_type': 'ascn'
+        }
+
+        response = send_request(valid_filter, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+
+        # sending request with invalid filters
+
+        invalid_filter = {
+            'query': 't',
+            'query_by': 'test',
+            'query_limit': 10,
+            'order_by': 'test',
+            'order_type': 'ascn',
+        }
+
+        response = send_request(invalid_filter, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError'))
+
+        # print(response_data)  
+    
+    def testSupplierQuery(self):
+        ''' Testing supplier Query '''
+
+        url = '/query/supplier/'
+        valid_filter = {
+            'query': '',
+            'query_by': 'name',
+            'query_limit': 2,
+            'order_by': 'name',
+            'order_type': 'desc'
+        }
+
+        response = send_request(valid_filter, url, 'GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        # print(response_data)
+
+        invalid_filter = {
+            'query': 't',
+            'query_by': 'test',
+            'order_type': 'ascn',
+            'order_by': 'test'
+        }
+
+        response = send_request(invalid_filter, url, 'GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+        self.assertTrue(response_data.get('isError'))
+        # print(response_data)
+
+    def testTransactionQuery(self):
+        ''' Testing transaction Query'''
+        url = '/query/transaction/'
+
+        valid_filters = {
+            'query': '2020-09-29',
+            'query_by': 'created_on',
+            'query_limit': 100,
+            'order_type': 'desc',
+            'order_by': 'created_on'
+        }
+
+        response = send_request(valid_filters, url, method='GET')
+        self.assertEqual(response.status_code, 200)
+        response_data = loads(response.content).get('responseData')
+
+        print(response_data)

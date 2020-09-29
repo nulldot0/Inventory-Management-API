@@ -22,11 +22,11 @@ class TransactionForm(forms.ModelForm):
 
 
 class QueryForm(forms.Form):
-    query = forms.CharField()
+    query = forms.CharField(required=False)
     query_by = forms.CharField()
     query_limit = forms.IntegerField(initial=100, required=False)
     order_by = forms.CharField(empty_value='pk')
     order_type = forms.ChoiceField(choices=[
         ('desc', 'desc'),
         ('ascn', 'ascn')
-    ])
+    ], required=False)

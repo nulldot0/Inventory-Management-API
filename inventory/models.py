@@ -1,11 +1,12 @@
 from django.db import models
 from django.db.models.functions import Coalesce
-
+from django.core.exceptions import FieldError
 
 class QuerySet(models.QuerySet):
     def search(self, **kwargs):
-        ''' This function is responsible for searching product '''
+        ''' This function is responsible for searching '''
         q = self  # the query objects
+        errors = []
         if kwargs.get('query', ''):
             query = kwargs['query']  # the query to search
             if kwargs.get('query_by'):
@@ -14,27 +15,71 @@ class QuerySet(models.QuerySet):
                         f'{kwargs.get("query_by")}__icontains': kwargs.get('query')
                     }
                     q = q.filter(**query_by)
-                except:
-                    pass
+                except FieldError as e:
+                    errors.append(e.args[0]) 
 
-        if kwargs.get('order_type'):
+        if kwargs.get('order_type') == 'desc':
             # order product ascending or descending with it's order_by value
             # (e.g. order_by = "stock", order_by="name", order_by="stock")
             # order_type has two choices only desc or ascn
-
-            if kwargs.get('order_type') == 'desc':
-                if kwargs.get('order_by'):
+            
+            if kwargs.get('order_by'):
                     order_by = f'-{kwargs["order_by"]}'
-                    q = q.order_by(order_by)
-            else:
-                if kwargs.get('order_by'):
-                    order_by = f'{kwargs["order_by"]}'
+                    # error checking if field name exists in the model
+                    try:
+                        q = q.order_by(order_by)
+                    except FieldError as e:
+                        errors.append(e.args[0]) 
+
+        elif kwargs.get('order_type') == 'ascn':
+            if kwargs.get('order_by'):
+                order_by = f'{kwargs["order_by"]}'
+                # error checking if field name exists in the model
+                try:
                     q = q.order_by(
                         kwargs['order_by'])
+                except FieldError as e:
+                    errors.append(e.args[0]) 
 
         if kwargs.get('query_limit'):
             # limit query with query_limit value
             q = q[0:kwargs['query_limit']]
+
+        if errors:
+            # return this if there are errors
+            return {
+                'isError': True,
+                'errorInfo': errors
+            }
+        else:
+            return q
+
+class TransactionQuerySet(models.QuerySet):
+    def search(self, **kwargs):
+        q = self
+        # working
+        if kwargs.get('query'):
+            try:
+                query_by = {
+                    f'{kwargs.get("query_by")}__icontains': kwargs.get('query')
+                }
+                q = q.filter(**query_by)
+            except FieldError as e:
+                return f'{e}.'
+
+        if kwargs.get('order_type') == 'desc':
+            if kwargs.get('order_by'):
+                order_by = f'-{kwargs["order_by"]}'
+                q = q.order_by(order_by)
+
+        elif kwargs.get('order_type') == 'ascn':
+            if kwargs.get('order_by'):
+                order_by = kwargs["order_by"]
+                q = q.order_by(order_by)
+
+        if kwargs.get('query_limit'):
+            query_limit = kwargs.get('query_limit')
+            q = q[0:query_limit]
 
         return q
 
