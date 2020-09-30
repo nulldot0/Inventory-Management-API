@@ -60,14 +60,14 @@ class TransactionQuerySet(models.QuerySet):
         q = self
         errors = []
         query = kwargs.get('query')
-        
+
         if kwargs.get('query_by') == 'created_on':
             suffix = kwargs.get('query_by_suffix')
             try:
                 if suffix == 'range':
                     # if suffix is ranges then split and strip query
-                    query = [ i.strip() for i in query.split(',') ]
-                    
+                    query = [i.strip() for i in query.split(',')]
+
                 try:
                     query_by = {
                         f'{kwargs.get("query_by")}__{suffix}': query
@@ -117,7 +117,7 @@ class TransactionQuerySet(models.QuerySet):
                 'isError': True,
                 'errorInfo': errors
             }
-            
+
         else:
             return q
 

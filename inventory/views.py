@@ -12,7 +12,8 @@ def product_action(request, action):
     if request.method == 'GET':
         if action == 'read':
             loaded_data = json.loads(request.GET.get('jsonData'))
-            response_data = read_model(loaded_data.get('productId'), Product, 'product')
+            response_data = read_model(
+                loaded_data.get('productId'), Product, 'product')
         else:
             response_data = {
                 'isError': True,
@@ -123,10 +124,12 @@ def supplier_action(request, action):
 
 
 def transaction_action(request, action):
+    ''' This function handles CREATE, READ, UPDATE, DELETE of a transaction '''
     if request.method == 'GET':
         loaded_data = json.loads(request.GET.get('jsonData'))
         if action == 'read':
-            response_data = read_model(loaded_data.get('transactionId'), Transaction, 'transaction')
+            response_data = read_model(loaded_data.get(
+                'transactionId'), Transaction, 'transaction')
         else:
             response_data = {
                 'isError': True,
@@ -136,24 +139,48 @@ def transaction_action(request, action):
         loaded_data = json.loads(request.POST.get('jsonData'))
 
         if action == 'create':
+            # creates a new transaction
             transaction_info = loaded_data
-            response_data = create_model(
+            # logic
+            try:
+                transaction_logic(loaded_data, action)
+                response_data = create_model(
                 transaction_info, Transaction, TransactionForm)
-        elif action == 'update':
-            transaction_id = loaded_data.get('transactionId')
-            transaction_info = loaded_data.get('transactionInfo')
-            if transaction_id:
-                response_data = update_model(
-                    transaction_id, transaction_info, Transaction, TransactionForm)
-            else:
+            except Exception as e:
                 response_data = {
                     'isError': True,
-                    'errorInfo': 'Please provide a transaction Id'
+                    'errorInfo': e.args
                 }
-        elif action == 'delete':
+
+            
+        elif action == 'update':
+            # updates the transaction
             transaction_id = loaded_data.get('transactionId')
-            response_data = delete_model(
+            transaction_info = loaded_data.get('transactionInfo')
+            # logic
+            try:
+                transaction_logic(loaded_data, action)
+                response_data = update_model(
+                    transaction_id, transaction_info, Transaction, TransactionForm)
+            except Exception as e:
+                response_data = {
+                    'isError': True,
+                    'errorInfo': e.args
+                }
+                
+        elif action == 'delete':
+            # deletes a transaction
+            transaction_id = loaded_data.get('transactionId')
+            # logic
+            try:
+                transaction_logic(loaded_data, action)
+                response_data = delete_model(
                 transaction_id, Transaction, 'transaction')
+            except Exception as e:
+                response_data = {
+                    'isError': True,
+                    'errorInfo': e.args
+                }
         else:
             response_data = {
                 'isError': True,
@@ -169,17 +196,55 @@ def transaction_action(request, action):
     )
 
 
-def query(request, q_model):
-    ''' This function handles the query of the models '''
+def transaction_logic(loaded_data, action):
+    if action == 'delete':
+        transaction_id = loaded_data.get('transactionId')
+        transaction = Transaction.objects.get(pk=transaction_id)
+        transaction_stock = transaction.stock
+        if loaded_data.get('return_stocks') == True:
+            product = Product.objects.get(pk=transaction.product_id)
+            product.stock -= transaction_stock
+            product.save()
 
-    # JSON OBJECT TO SEND
-    # filters = {
-    #   "query": "the query to search"   => optional, default is ''
-    #   "query_by": "the field to query from the model" => default is "name"
-    #   "query_limit": 100, => optional, must be an integer
-    #   "order_by": "the field from the model"
-    #    "order_type": "desc or ascn" => two choices only
-    # }
+        transaction.delete()
+
+    elif action == 'update':
+        transaction_id = loaded_data.get('transactionId')
+        transactionInfo = loaded_data.get('transactionInfo')
+        transaction = Transaction.objects.get(pk=transaction_id)
+        prev_product_id = transaction.product_id
+        prev_transaction_stock = transaction.stock
+        form = TransactionForm(transactionInfo, instance=transaction)
+
+        if form.has_changed() and form.is_valid():  # checks if data has changed from previous transaction
+            changed_fields = form.changed_data
+            if 'product' in changed_fields:
+                if loaded_data.get('return_stocks') == True:
+                    # if product has changed and return_stock is true bring product stocks back
+                    product = Product.objects.get(pk=prev_product_id)
+                    product.stock -= prev_transaction_stock
+                    product.save()
+
+                # this will update the products stock
+                product_id = transactionInfo.get('product')
+                product = Product.objects.get(pk=product_id)
+                product.stock += transactionInfo.get('stock')
+                product.save()
+            else:
+                product_id = transactionInfo.get('product')
+                product = Product.objects.get(pk=product_id)
+                product.stock -= prev_transaction_stock
+                product.stock += transactionInfo.get('stock')
+                product.save()
+
+    elif action == 'create':
+        product = Product.objects.get(pk=loaded_data.get('product'))
+        product.stock += loaded_data.get('stock')
+        product.save()
+
+
+def query(request, q_model):
+    ''' This function handles the querying of the models '''
 
     filters = json.loads(request.GET.get('jsonData'))
     # validate values with django forms
@@ -187,7 +252,7 @@ def query(request, q_model):
         filter_form = QueryForm(filters)
 
         # queries the product objects
-        response_data =  query_search(filter_form, Product, 'product')
+        response_data = query_search(filter_form, Product, 'product')
 
     elif q_model == 'supplier':
         filter_form = QueryForm(filters)
@@ -197,15 +262,15 @@ def query(request, q_model):
     elif q_model == 'transaction':
         filter_form = TransactionQueryForm(filters)
         # queries the transaction objects
-        response_data =  query_search(filter_form, Transaction, 'transaction')
+        response_data = query_search(filter_form, Transaction, 'transaction')
     else:
         # return an error response when models to query is invalid
         model_list = ['product', 'supplier', 'transaction']
         response_data = {
-                    'isError': True,
-                    'errorInfo': f'models to query does not exist. Please choose between ( {", ".join(model_list[:-1])}, and {model_list[-1]})'
-                }
-                
+            'isError': True,
+            'errorInfo': f'models to query does not exist. Please choose between ( {", ".join(model_list[:-1])}, and {model_list[-1]})'
+        }
+
     return HttpResponse(
         json.dumps(
             {
@@ -214,21 +279,25 @@ def query(request, q_model):
         )
     )
 
+
 def query_search(filter_form, model_obj, model_name):
+    ''' This function handles the querying of models '''
     if filter_form.is_valid():
+        # search method from QuerySet in models.py
         q = model_obj.objects.search(**filter_form.cleaned_data)
         if isinstance(q, dict):
             return q
 
-        return [read_model(i.pk, model_obj, model_name) for i in q ]
+        return [read_model(i.pk, model_obj, model_name) for i in q]
     else:
         return {
             'isError': True,
             'errorInfo': filter_form.errors.as_json()
         }
 
+
 def create_model(model_info, model_obj, model_form):
-    # creates a new model
+    ''' This function handles the creation of models '''
     form = model_form(model_info)
 
     if form.is_valid():
@@ -248,8 +317,8 @@ def mass_create_model(loaded_data, model_obj, model_form):
 
 def read_model(pk, obj, model_name):
     ''' This gives the information of a Model from Obj '''
-    from datetime import datetime  # imported for checking fields with instance as datetime 
-    model_tuple_check = (Product, Supplier) # used for for checking instances
+    from datetime import datetime  # imported for checking fields with instance as datetime
+    model_tuple_check = (Product, Supplier)  # used for for checking instances
 
     try:
         model_obj = obj.objects.filter(pk=pk).exists()
@@ -275,8 +344,9 @@ def read_model(pk, obj, model_name):
                 # checks if a instance of a models to for json serialization
                 if isinstance(attribute_value, model_tuple_check):
                     model_info[i] = attribute_value.serializable_value('id')
-                elif isinstance(attribute_value, datetime): # check if a datetime instance
-                    model_info[i] = attribute_value.strftime('%Y-%m-%d %H:%M:%S:%f')
+                elif isinstance(attribute_value, datetime):  # check if a datetime instance
+                    model_info[i] = attribute_value.strftime(
+                        '%Y-%m-%d %H:%M:%S:%f')
                 else:
                     model_info[i] = getattr(model_obj, i)
             except:

@@ -31,6 +31,7 @@ class QueryForm(forms.Form):
         ('ascn', 'ascn')
     ], required=False)
 
+
 class TransactionQueryForm(forms.Form):
     query_by = forms.CharField()
     query_by_suffix = forms.CharField(required=False, empty_value='contains')

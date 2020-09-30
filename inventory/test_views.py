@@ -9,7 +9,7 @@ from . import forms, models
 
 
 def send_request(data, url, method='POST'):
-    ''' sending data to servier'''
+    ''' sending data to server '''
     client = Client()
 
     if method == 'POST':
@@ -427,14 +427,16 @@ class TransactionView(TestCase):
         from datetime import datetime
         # creating 100 transactions
         product = models.Product.objects.create(
-            pk=1, name='test product', stock=100)
+            pk=1, name='test product', stock=5000)
+        models.Product.objects.create(
+            pk=2, name='test product 1', stock=3000)
+
         for i in range(100):
-            stock_to_add = (i+1) * 20
             models.Transaction(
-                product=product, stock=stock_to_add, note='test note').save()
+                product=product, stock=100, note='test note').save()
 
     def testCreate(self):
-        ''' Testing create transaction '''
+        ''' Testing transaction create '''
         url = '/transaction/create/'
 
         # sending request with valid transaction info
@@ -466,7 +468,7 @@ class TransactionView(TestCase):
         self.assertTrue(response_data.get('isError'))
 
     def testRead(self):
-        ''' Testing read transaction '''
+        ''' Testing transaction read '''
 
         url = '/transaction/read/'
 
@@ -480,7 +482,7 @@ class TransactionView(TestCase):
         response_data = loads(response.content).get('responseData')
         # print(response_data)
 
-        # sending request with invalid transcation id
+        # sending request with invalid transaction id
         invalid_transaction_id = {
             'transactionId': 1000
             # 'trasactionId': None
@@ -492,7 +494,7 @@ class TransactionView(TestCase):
         # print(response_data)
 
     def testUpdate(self):
-        ''' Testing update transaction '''
+        ''' Testing transaction update '''
         url = '/transaction/update/'
 
         previous_transaction = models.Transaction.objects.get(pk=1)
@@ -527,7 +529,7 @@ class TransactionView(TestCase):
         self.assertTrue(response_data.get('isError'))
 
     def testDelete(self):
-        ''' Testing transcation delete '''
+        ''' Testing transaction delete '''
         url = '/transaction/delete/'
 
         # sending request with valid transaction id
@@ -553,7 +555,106 @@ class TransactionView(TestCase):
 
         # print(response_data)
 
+    def testLogicUpdate(self):
+        ''' Testing transaction update logic '''
+        url = '/transaction/update/'
 
+        # testing updated logic when product is changed and return stocks is true
+        transaction = models.Transaction.objects.get(pk=2)
+        transaction_stock = transaction.stock
+        changed_product = {
+            'transactionId': 2,
+            'transactionInfo': {
+                'product': 2,
+                'stock': 2000
+            },
+            'return_stocks': True
+        }
+
+        prev_prod_stock = models.Product.objects.get(
+            pk=1).stock
+        changed_prod_prev_stocks = models.Product.objects.get(pk=2).stock
+        response = send_request(changed_product, url)
+        self.assertEqual(response.status_code, 200)
+        changed_prod_new_stocks = models.Product.objects.get(pk=2).stock
+        prev_prod_new_stock = models.Product.objects.get(
+            pk=1).stock
+
+        # checks if stocks has returned to previous product
+        self.assertEqual(prev_prod_stock - transaction_stock,
+                         prev_prod_new_stock)
+
+        # checks if new product stocks has changed
+        self.assertEqual(changed_prod_new_stocks, changed_prod_prev_stocks +
+                         changed_product.get('transactionInfo').get('stock'))
+
+        response_data = loads(response.content).get('responseData')
+
+        transaction = models.Transaction.objects.get(pk=3)
+        prev_transaction_stock = transaction.stock
+        prev_product = models.Product.objects.get(pk=transaction.product_id)
+        prev_product_stock = prev_product.stock
+        unchanged_product = {
+            'transactionId': 3,
+            'transactionInfo': {
+                'product': 1,
+                'stock': 3000
+            }
+        }
+
+        response = send_request(unchanged_product, url)
+        new_product_stock = models.Product.objects.get(pk=1).stock
+        # checks if product stocks updated
+        prev_product_stock_adjusted = prev_product_stock - prev_transaction_stock + unchanged_product.get('transactionInfo').get('stock')
+        self.assertEqual(prev_product_stock_adjusted, new_product_stock)
+
+        invalid_data = {
+            'transactionId': 1,
+            'transactionInfo': {
+                'pr': None,
+                'test': 'ok'
+            }
+        }
+
+        response = send_request(invalid_data, url)
+        response_data = loads(response.content).get('responseData')
+
+        # print(response_data)
+        self.assertTrue(response_data.get('isError'))
+
+    def testLogicCreate(self):
+        ''' Testing transaction create logic '''
+
+        url = '/transaction/create/'
+        product_stock = models.Product.objects.get(pk=2).stock
+        
+        valid_data = {
+            'product': 2,
+            'stock': 2000,
+            'note': 'added 2000 stocks'
+        }
+
+        response = send_request(valid_data, url)
+        new_product_stock = models.Product.objects.get(pk=2).stock
+        self.assertEqual(product_stock + valid_data.get('stock'), new_product_stock)
+
+    def testLogicDelete(self):
+        ''' Testing transaction delete logic '''
+        url = '/transaction/delete/'
+        transaction = models.Transaction.objects.get(pk=2)
+        transaction_stock = transaction.stock
+        product_id = transaction.product_id
+        product_stock = models.Product.objects.get(pk=product_id).stock
+        
+        valid_data = {
+            'transactionId': 2,
+            'return_stocks': True
+        }
+
+        response = send_request(valid_data, url)
+        new_product_stock = models.Product.objects.get(pk=product_id).stock
+        # check if product stock is returned 
+        self.assertEqual(product_stock - transaction_stock, new_product_stock)
 class QueryView(TestCase):
     def setUp(self):
         # create 10 supplier
@@ -588,11 +689,13 @@ class QueryView(TestCase):
                 name=name_generator,
                 stock=random.randint(1, 100),
             )
-        
+
         # create 100 transaction
         for i in range(100):
-            note = ''.join([ random.choice(string.ascii_letters) for i in range(10) ])
-            models.Transaction.objects.create(product_id=1, stock=random.randint(100, 1000), note=f'note {note}')
+            note = ''.join([random.choice(string.ascii_letters)
+                            for i in range(10)])
+            models.Transaction.objects.create(
+                product_id=1, stock=random.randint(100, 1000), note=f'note {note}')
 
     def testProductQuery(self):
         ''' Testing product Query'''
@@ -627,8 +730,8 @@ class QueryView(TestCase):
         response_data = loads(response.content).get('responseData')
         self.assertTrue(response_data.get('isError'))
 
-        # print(response_data)  
-    
+        # print(response_data)
+
     def testSupplierQuery(self):
         ''' Testing supplier Query '''
 
