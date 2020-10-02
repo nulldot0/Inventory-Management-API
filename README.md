@@ -374,7 +374,7 @@ if you want to return the stocks on product on the transaction you can pass **re
     "jsonData": {
         "query": "to _query",
         "query_by": "name, email, id, address, mobile_number",
-        "query_by_suffix": "range, icontains, gt, lt"
+        "query_by_suffix": "range, icontains, gt, lt",
         "order_by": "name, email, id, address, mobile_number",
         "query_limit": 100,
         "order_type": "ascn or desc",
