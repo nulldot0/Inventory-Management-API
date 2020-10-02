@@ -533,7 +533,7 @@ class TransactionView(TestCase):
         ''' Testing transaction delete '''
         url = '/transaction/delete/'
 
-        sending request with valid transaction id
+        # sending request with valid transaction id
         valid_transaction_id = {
             'transactionId': 2
         }
@@ -568,14 +568,10 @@ class TransactionView(TestCase):
 
         response = send_request(return_stock_data, url)
         self.assertEqual(response.status_code, 200)
-        
+
         product_new_stock = models.Product.objects.get(pk=product_id).stock
 
         self.assertEqual(product_stock + transaction_stock, product_new_stock)
-
-
-
-
 
     def testLogicUpdate(self):
         ''' Testing transaction update logic '''
@@ -627,7 +623,8 @@ class TransactionView(TestCase):
         response = send_request(unchanged_product, url)
         new_product_stock = models.Product.objects.get(pk=1).stock
         # checks if product stocks updated
-        prev_product_stock_adjusted = prev_product_stock - prev_transaction_stock + unchanged_product.get('transactionInfo').get('stock')
+        prev_product_stock_adjusted = prev_product_stock - prev_transaction_stock + \
+            unchanged_product.get('transactionInfo').get('stock')
         self.assertEqual(prev_product_stock_adjusted, new_product_stock)
 
         invalid_data = {
@@ -649,7 +646,7 @@ class TransactionView(TestCase):
 
         url = '/transaction/create/'
         product_stock = models.Product.objects.get(pk=2).stock
-        
+
         valid_data = {
             'product': 2,
             'stock': 2000,
@@ -658,7 +655,8 @@ class TransactionView(TestCase):
 
         response = send_request(valid_data, url)
         new_product_stock = models.Product.objects.get(pk=2).stock
-        self.assertEqual(product_stock + valid_data.get('stock'), new_product_stock)
+        self.assertEqual(
+            product_stock + valid_data.get('stock'), new_product_stock)
 
     def testLogicDelete(self):
         ''' Testing transaction delete logic '''
@@ -667,7 +665,7 @@ class TransactionView(TestCase):
         transaction_stock = transaction.stock
         product_id = transaction.product_id
         product_stock = models.Product.objects.get(pk=product_id).stock
-        
+
         valid_data = {
             'transactionId': 2,
             'return_stocks': True
@@ -675,8 +673,10 @@ class TransactionView(TestCase):
 
         response = send_request(valid_data, url)
         new_product_stock = models.Product.objects.get(pk=product_id).stock
-        # check if product stock is returned 
-        self.assertEqual(product_stock - transaction_stock, new_product_stock)
+        # check if product stock is returned
+        self.assertEqual(product_stock + transaction_stock, new_product_stock)
+
+
 class QueryView(TestCase):
     def setUp(self):
         # create 10 supplier
@@ -719,7 +719,7 @@ class QueryView(TestCase):
             models.Transaction.objects.create(
                 product_id=1, stock=random.randint(100, 1000), note=f'note {note}')
 
-    def testProductQuery(self):
+    def testProduct(self):
         ''' Testing product Query'''
 
         url = '/query/product/'
