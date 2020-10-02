@@ -34,7 +34,7 @@ class QueryForm(forms.Form):
 
 class TransactionQueryForm(forms.Form):
     query_by = forms.CharField()
-    query_by_suffix = forms.CharField(required=False, empty_value='contains')
+    query_by_suffix = forms.CharField(required=False, empty_value='icontains')
     query = forms.CharField(required=False)
     query_limit = forms.IntegerField(initial=100, required=False)
     order_by = forms.CharField(empty_value='created_on')
