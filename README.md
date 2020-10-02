@@ -2,6 +2,18 @@
 
 This is an Django app which can be integrated to any project.
 
+## Requirements
+
+* python >= 3
+* Django >= 3.1.1
+* pip3 >= 9.0.1
+
+## Installation
+
+* pip3 install django==3.1.1
+
+Just add **"invetory"** on your installed apps in settings.py
+
 ## Data to send must be in JSON format
 
 All data must be sent in the key **"jsonData"**  
