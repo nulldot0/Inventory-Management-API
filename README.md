@@ -44,11 +44,11 @@ if data sent is invalid **"responseData.isError"** would return true together wi
 ```json
 {
     "jsonData": {
-        "name": "your product name",  // required
-        "stock": 0,                   // required
-        "barcode": 123534535,         // optional
-        "description": "your desc",   // optional
-        "supplier": 1                 // optional (Must be a supplier id)
+        "name": "your product name",
+        "stock": 0,
+        "barcode": 123534535,
+        "description": "your desc",
+        "supplier": 1
     }
 }
 ```
@@ -84,13 +84,13 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "productId": 2,                   // required (It must be a product id)
+        "productId": 2,
         "productInfo": {
-            "name": "your product name",  // required
-            "stock": 0,                   // required
-            "barcode": 123534535,         // optional
-            "description": "your desc",   // optional
-            "supplier": 1                 // optional (It must be a supplier id if provided)
+            "name": "your product name",
+            "stock": 0,
+            "barcode": 123534535,
+            "description": "your desc",
+            "supplier": 1
         }
     }
 }
@@ -104,7 +104,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "productId": 2      // required
+        "productId": 2
     }
 }
 ```
@@ -117,7 +117,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "productId": 2      // required
+        "productId": 2
     }
 }
 ```
@@ -139,10 +139,10 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "name": "your supplier name",       // required
-        "mobile_number": 63912332123,       // optional
-        "address": "some st. some stat",    // optional
-        "email": "someemail@email.com",     // optional
+        "name": "your supplier name",
+        "mobile_number": 63912332123,
+        "address": "some st. some stat",
+        "email": "someemail@email.com",
     }
 }
 ```
@@ -158,12 +158,12 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "supplierId": 2,                        // required (It must be a supplier id)
+        "supplierId": 2,
         "supplierInfo": {
-            "name": "your supplier name",       // required
-            "mobile_number": 63901231233,       // optional
-            "address": "some st. some state",   // optional
-            "email": "supplier@email.com",      // optional
+            "name": "your supplier name",
+            "mobile_number": 63901231233,
+            "address": "some st. some state",
+            "email": "supplier@email.com",
         }
     }
 }
@@ -178,7 +178,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "supplierId": 2      // required
+        "supplierId": 2
     }
 }
 ```
@@ -192,7 +192,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "supplierId": 2      // required
+        "supplierId": 2
     }
 }
 ```
@@ -210,9 +210,9 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "product": 1,           // required (must be a product id)
-        "stock": 100,           // required
-        "note": "some note",    // optional
+        "product": 1,
+        "stock": 100,
+        "note": "some note",
     }
 }
 ```
@@ -228,11 +228,11 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```json
 {
     "jsonData": {
-        "transactionId": 2,                     // required (It must be a supplier id)
+        "transactionId": 2,
         "transactionInfo": {
-            "product": 1,                       // required (must be a product id)
-            "stock": -100,                      // required
-            "note": "some update note",         // optional
+            "product": 1,
+            "stock": -100,
+            "note": "some update note",
         }
     }
 }
@@ -245,13 +245,13 @@ if you changed the product id your can pass **return_stocks:True** to return the
 ```json
 {
     "jsonData": {
-        "transactionId": 2,             // required
+        "transactionId": 2,
         "transactionInfo": {
-            "product": 2,               // required
-            "stock": 200,               // required
-            "note": "some note"         // optional
+            "product": 2,
+            "stock": 200,
+            "note": "some note"
         },
-        "return_stocks": true           // optional
+        "return_stocks": true
     }
 }
 ```
@@ -265,7 +265,7 @@ if you changed the product id your can pass **return_stocks:True** to return the
 ```json
 {
     "jsonData": {
-        "transactionId": 2      // required
+        "transactionId": 2
     }
 }
 ```
@@ -279,19 +279,20 @@ if you changed the product id your can pass **return_stocks:True** to return the
 ```json
 {
     "jsonData": {
-        "transactionId": 2       // required
+        "transactionId": 2
     }
 }
 ```
 
 if you want to return the stocks on product on the transaction you can pass **return_stocks: true**. example below.
+
 * **"return_stocks"** type: bool, set to true if you want to return the stocks of the product in the transaction.
 
 ```json
 {
     "jsonData": {
-        "transactionId": 5,        // required
-        "return_stocks": true      // optional
+        "transactionId": 5,
+        "return_stocks": true
     }
 }
 ```
@@ -317,11 +318,11 @@ if you want to return the stocks on product on the transaction you can pass **re
 ```json
 {
     "jsonData": {
-        "query": "to query",                        // the query
-        "query_by": "name, stock, id, description", // can either be the four.
-        "order_by": "name, stock, id, description", // can either be the four.
-        "query_limit": 100,                         // default is 100.
-        "order_type": "ascn or desc",               // default is ascn (ascending). choose between the two.
+        "query": "to query",
+        "query_by": "name, stock, id, description",
+        "order_by": "name, stock, id, description",
+        "query_limit": 100,
+        "order_type": "ascn or desc",
     }
 }
 ```
@@ -343,11 +344,11 @@ if you want to return the stocks on product on the transaction you can pass **re
 ```json
 {
     "jsonData": {
-        "query": "to query",                                        // the query
-        "query_by": "name, email, id, address, mobile_number",      // can either be the five.
-        "order_by": "name, email, id, address, mobile_number",      // can either be the five.
-        "query_limit": 100,                                         // default is 100.
-        "order_type": "ascn or desc",                               // default is ascn (ascending). choose between the two.
+        "query": "to query",
+        "query_by": "name, email, id, address, mobile_number",
+        "order_by": "name, email, id, address, mobile_number",
+        "query_limit": 100,
+        "order_type": "ascn or desc",
     }
 }
 ```
@@ -372,11 +373,11 @@ if you want to return the stocks on product on the transaction you can pass **re
 {
     "jsonData": {
         "query": "to _query",
-        "query_by": "name, email, id, address, mobile_number",      // can either be the five.
-        "query_by_suffix": "range, icontains, gt, lt"               // default is icontains refer to django docs about query.
-        "order_by": "name, email, id, address, mobile_number",      // can either be the five.
-        "query_limit": 100,                                         // default is 100.
-        "order_type": "ascn or desc",                               // default is ascn (ascending). Can either be the two
+        "query_by": "name, email, id, address, mobile_number",
+        "query_by_suffix": "range, icontains, gt, lt"
+        "order_by": "name, email, id, address, mobile_number",
+        "query_limit": 100,
+        "order_type": "ascn or desc",
     }
 }
 ```
