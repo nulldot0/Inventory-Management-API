@@ -29,7 +29,17 @@ if data sent is invalid **"responseData.isError"** would return true together wi
 
 **"/product/create/"** creates a new product. Data to send format must be like the example below.
 
-* request method = post
+* request method = post.
+
+* **"name"** type: string, product name. (required)
+
+* **"stock"** type: number, product stock. (required, default is 0)
+
+* **"barcode"** type: string, product barcode. (optional)
+
+* **"description"** type: string, product description. (optional)
+
+* **"supplier"** type: number, product supplier id. (optional)
 
 ```json
 {
@@ -44,6 +54,9 @@ if data sent is invalid **"responseData.isError"** would return true together wi
 ```
 
 if you want to create multiple products you can pass **isMass: true** together with the list of product information to create. example below.
+
+* **"jsonData"** type: list, list of product information. (required)
+* **"isMass"** type: bool, set to true if creating multiple products. (optional)
 
 ```json
 {
@@ -64,6 +77,9 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/product/update/"** updates a product. Data to send format must be like the example below.
 
 * request method = post
+* **"productId"** type: number, product id to update. (required)
+
+* **"productInfo"** type: dict, updated product information.
 
 ```json
 {
@@ -83,6 +99,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/product/read/"** reads a product. Data to send format must be like the example below.
 
 * request method = get
+* **"productId"** type: number, product id to be read. (required)
 
 ```json
 {
@@ -95,6 +112,7 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/product/delete/"** deletes a product. Data to send format must be like the example below.
 
 * request method = post
+* **"productId"** type: number, product id to be deleted. (required)
 
 ```json
 {
@@ -110,6 +128,14 @@ if you want to create multiple products you can pass **isMass: true** together w
 
 * request method = post
 
+* **"name"** type: string, the suppliers name. (required)
+
+* **"mobile_number"** type: number, the suppliers number. (optional)
+
+* **"address"** type: string, the suppliers address. (optional)
+
+* **"email"** type: string, the suppliers email. (optional)
+
 ```json
 {
     "jsonData": {
@@ -124,6 +150,10 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/supplier/update/"** updates a supplier. Data to send format must be like the example below.
 
 * request method = post
+
+* **"supplierId"** type: number, suppliers id to be updated. (required)
+
+* **"supplierInfo"** type: dict, suppliers updated information.
 
 ```json
 {
@@ -143,6 +173,8 @@ if you want to create multiple products you can pass **isMass: true** together w
 
 * request method = get
 
+* **"supplierId"** type: number, the suppliers id to be read.
+
 ```json
 {
     "jsonData": {
@@ -154,6 +186,8 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/supplier/delete/"** deletes a supplier. Data to send format must be like the example below.
 
 * request method = post
+
+* **"supplierId"** type: number, the suppliers id to be deleted.
 
 ```json
 {
@@ -169,6 +203,10 @@ if you want to create multiple products you can pass **isMass: true** together w
 
 * request method = post
 
+* **"product"** type: number, the product id in the transaction. (required)
+* **"stock"** type: number, the stock in the supplier. (required)
+* **"note"** type: string, note/description in the transaction. (optional)
+
 ```json
 {
     "jsonData": {
@@ -182,6 +220,10 @@ if you want to create multiple products you can pass **isMass: true** together w
 **"/transaction/update/"** updates a transaction. Data to send format must be like the example below.
 
 * request method = post
+
+* **"transactionId"** type: number, transaction id to be updated. (required)
+
+* **"transactoinInfo"** type: dict, updated transaction information.
 
 ```json
 {
@@ -197,6 +239,8 @@ if you want to create multiple products you can pass **isMass: true** together w
 ```
 
 if you changed the product id your can pass **return_stocks:True** to return the stocks to the previous product. example below.
+
+* **"return_stocks"** type: bool, true if you want to return stock from previous product. (optional)
 
 ```json
 {
@@ -216,6 +260,8 @@ if you changed the product id your can pass **return_stocks:True** to return the
 
 * request method = get
 
+* **"transactionId"** type: number, transaction id to be read. (required)
+
 ```json
 {
     "jsonData": {
@@ -228,6 +274,8 @@ if you changed the product id your can pass **return_stocks:True** to return the
 
 * request method = post
 
+* **"transcationId"** type: number, transaction id to be deleted. (required)
+
 ```json
 {
     "jsonData": {
@@ -237,6 +285,7 @@ if you changed the product id your can pass **return_stocks:True** to return the
 ```
 
 if you want to return the stocks on product on the transaction you can pass **return_stocks: true**. example below.
+* **"return_stocks"** type: bool, set to true if you want to return the stocks of the product in the transaction.
 
 ```json
 {
@@ -255,6 +304,16 @@ if you want to return the stocks on product on the transaction you can pass **re
 
 **/query/product/** queries a product. Data sent should be like the format below.
 
+* **"query"** type: string, the query. (optional if empty it will return all)
+
+* **"query_by"** type: string, can be *name*, *description*, *id*, *stock*. (required)
+
+* **"query_limit"** type: number, any number. (optional, default is 100)
+
+* **"order_by"** type: string, can be *name*, *description*, *id*, *stock*. (required)
+
+* **"order_type"** type: string, can be *ascn* or *desc*. (optional)
+
 ```json
 {
     "jsonData": {
@@ -271,6 +330,16 @@ if you want to return the stocks on product on the transaction you can pass **re
 
 **/query/supplier/** queries a supplier. Data sent should be like the format below.
 
+* **"query"** type: string, the query. (optional if empty it will return all)
+
+* **"query_by"** type: string, can be *name*, *address*, *id*, *mobile_number*, *email*. (required)
+
+* **"query_limit"** type: number, any number. (optional, default is 100)
+
+* **"order_by"** type: string, can be *name*, *address*, *id*, *mobile_number*, *email*. (required)
+
+* **"order_type"** type: string, can be *ascn* or *desc*. (optional)
+
 ```json
 {
     "jsonData": {
@@ -286,6 +355,18 @@ if you want to return the stocks on product on the transaction you can pass **re
 ### Transaction Query
 
 **/query/transaction/** queries a transaction. Data send should be like the format below.
+
+* **"query"** type: string, the query. (optional if empty it will return all)
+
+* **"query_by"** type: string, can be *id*, *note*, *product*, *stock*, *created_on*. (required)
+
+* **"query_by_suffix"** type: string, can be *range*, *gt*, *lt*, *starts_with* etc. Refer to django docs about query. (optional, default is icontains)
+
+* **"query_limit"** type: number, any number. (optional, default is 100)
+
+* **"order_by"** type: string, can be *id*, *note*, *product*, *stock*, *created_on*. (required)
+
+* **"order_type"** type: string, can be *ascn* or *desc*. (optional)
 
 ```json
 {
