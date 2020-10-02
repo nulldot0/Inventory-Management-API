@@ -224,6 +224,7 @@ class ProductView(TestCase):
         # print(response.content)
 
     def testDelete(self):
+        ''' Testing product delete '''
         url = '/product/delete/'
 
         # sending request with valid product id
@@ -532,7 +533,7 @@ class TransactionView(TestCase):
         ''' Testing transaction delete '''
         url = '/transaction/delete/'
 
-        # sending request with valid transaction id
+        sending request with valid transaction id
         valid_transaction_id = {
             'transactionId': 2
         }
@@ -554,6 +555,27 @@ class TransactionView(TestCase):
         self.assertTrue(response_data.get('isError'))
 
         # print(response_data)
+
+        transaction = models.Transaction.objects.get(pk=5)
+        transaction_stock = transaction.stock
+        product_id = transaction.product_id
+        product = models.Product.objects.get(pk=product_id)
+        product_stock = product.stock
+        return_stock_data = {
+            'transactionId': 5,
+            'return_stocks': True
+        }
+
+        response = send_request(return_stock_data, url)
+        self.assertEqual(response.status_code, 200)
+        
+        product_new_stock = models.Product.objects.get(pk=product_id).stock
+
+        self.assertEqual(product_stock + transaction_stock, product_new_stock)
+
+
+
+
 
     def testLogicUpdate(self):
         ''' Testing transaction update logic '''

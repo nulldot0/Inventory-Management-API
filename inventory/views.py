@@ -201,9 +201,10 @@ def transaction_logic(loaded_data, action):
         transaction_id = loaded_data.get('transactionId')
         transaction = Transaction.objects.get(pk=transaction_id)
         transaction_stock = transaction.stock
+        product_id = transaction.product_id
         if loaded_data.get('return_stocks') == True:
-            product = Product.objects.get(pk=transaction.product_id)
-            product.stock -= transaction_stock
+            product = Product.objects.get(pk=product_id)
+            product.stock += transaction_stock
             product.save()
 
         transaction.delete()
